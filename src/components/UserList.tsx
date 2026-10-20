@@ -126,33 +126,45 @@ export const UserList: React.FC = () => {
         u.role === 'admin' ? 'Admin' : 'Citizen',
       ]);
 
-      autoTable(doc, {
-        startY: 34,
-        head: [['#', 'Name', 'Mobile Number', 'Ward', 'Area', 'Role']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [15, 23, 42], // Slate-900
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: 'bold',
-          halign: 'left',
-        },
-        styles: {
-          fontSize: 8,
-          cellPadding: 2.5,
-          font: 'helvetica',
-          overflow: 'linebreak',
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 35, font: 'courier' },
-          3: { cellWidth: 25 },
-          4: { cellWidth: 45 },
-          5: { cellWidth: 20, halign: 'center' },
-        },
-      });
+      try {
+        autoTable(doc, {
+          startY: 34,
+          head: [['#', 'Name', 'Mobile Number', 'Ward', 'Area', 'Role']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [15, 23, 42], // Slate-900
+            textColor: [255, 255, 255],
+            fontSize: 8,
+            fontStyle: 'bold',
+            halign: 'left',
+          },
+          styles: {
+            fontSize: 8,
+            cellPadding: 2.5,
+            font: 'helvetica',
+            overflow: 'linebreak',
+          },
+          columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 35, font: 'courier' },
+            3: { cellWidth: 25 },
+            4: { cellWidth: 45 },
+            5: { cellWidth: 20, halign: 'center' },
+          },
+        });
+      } catch (atErr) {
+        if (typeof (doc as any).autoTable === 'function') {
+          (doc as any).autoTable({
+            startY: 34,
+            head: [['#', 'Name', 'Mobile Number', 'Ward', 'Area', 'Role']],
+            body: tableData,
+          });
+        } else {
+          throw atErr;
+        }
+      }
 
       doc.save(`savar-citizens-${new Date().toISOString().slice(0, 10)}.pdf`);
       showToast(

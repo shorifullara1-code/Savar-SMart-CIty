@@ -27,30 +27,40 @@ export const SavarMapHotspots: React.FC = () => {
     setFilterArea, 
     setActiveView, 
     setSelectedComplaintId,
-    setIsNewComplaintOpen
+    setIsNewComplaintOpen,
+    wards
   } = useApp();
 
-  const [selectedWard, setSelectedWard] = useState<SavarWardInfo>(SAVAR_WARDS[0]);
+  const activeWards = wards && wards.length > 0 ? wards.map(dbW => {
+    const base = SAVAR_WARDS.find(s => s.wardNumber === dbW.wardNumber) || SAVAR_WARDS[0];
+    return {
+      ...base,
+      ...dbW,
+      coordinates: base.coordinates
+    };
+  }) : SAVAR_WARDS;
+
+  const [selectedWard, setSelectedWard] = useState<SavarWardInfo>(activeWards[0] || SAVAR_WARDS[0]);
   const [selectedZoneTab, setSelectedZoneTab] = useState<'all' | 'pourashava' | 'baipayl' | 'ashulia' | 'surrounding'>('all');
 
   // Filter wards by zone tab
   const getFilteredWards = () => {
     switch (selectedZoneTab) {
       case 'pourashava':
-        return SAVAR_WARDS.filter((w) => w.wardNumber.startsWith('Ward'));
+        return activeWards.filter((w) => w.wardNumber.startsWith('Ward'));
       case 'baipayl':
-        return SAVAR_WARDS.filter((w) => w.wardNumber.includes('Baipayl'));
+        return activeWards.filter((w) => w.wardNumber.includes('Baipayl'));
       case 'ashulia':
-        return SAVAR_WARDS.filter((w) => w.wardNumber.includes('Ashulia'));
+        return activeWards.filter((w) => w.wardNumber.includes('Ashulia'));
       case 'surrounding':
-        return SAVAR_WARDS.filter((w) => 
+        return activeWards.filter((w) => 
           w.wardNumber.includes('Nabinagar') || 
           w.wardNumber.includes('Birulia') || 
           w.wardNumber.includes('Aminbazar')
         );
       case 'all':
       default:
-        return SAVAR_WARDS;
+        return activeWards;
     }
   };
 
