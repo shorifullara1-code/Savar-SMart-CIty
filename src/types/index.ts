@@ -72,3 +72,17 @@ export interface SavarWardInfo {
   contactNumber: string;
   coordinates: { x: number; y: number }; // Relative percentage on visual map
 }
+
+export interface HeroSlide {
+  id: string;
+  titleBn: string;
+  titleEn: string;
+  subtitleBn?: string;
+  subtitleEn?: string;
+  imageUrl: string;
+  linkUrl?: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+

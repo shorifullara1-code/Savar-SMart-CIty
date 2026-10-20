@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Complaint, ComplaintStatus, ProblemCategory, UserProfile, UrgencyLevel, SavarWardInfo } from '../types';
-import { INITIAL_COMPLAINTS, SAVAR_WARDS } from '../data/savarData';
+import { Complaint, ComplaintStatus, ProblemCategory, UserProfile, UrgencyLevel, SavarWardInfo, HeroSlide } from '../types';
+import { INITIAL_COMPLAINTS, SAVAR_WARDS, INITIAL_HERO_SLIDES } from '../data/savarData';
 import { errorHandler } from '../services/errorHandler';
 import { loadBalancer } from '../services/loadBalancer';
 import { supabase } from '../services/supabaseClient';
@@ -78,6 +78,13 @@ interface AppContextType {
   // Ward management
   wards: SavarWardInfo[];
   updateWard: (wardNumber: string, updatedInfo: Partial<SavarWardInfo>) => void;
+
+  // Hero Slides management
+  heroSlides: HeroSlide[];
+  addHeroSlide: (slide: Omit<HeroSlide, 'id' | 'createdAt'>) => Promise<void>;
+  updateHeroSlide: (id: string, updated: Partial<HeroSlide>) => Promise<void>;
+  deleteHeroSlide: (id: string) => Promise<void>;
+  toggleHeroSlideActive: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -150,6 +157,113 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       showToast(language === 'bn' ? 'ওয়ার্ডের তথ্য সফলভাবে আপডেট হয়েছে!' : 'Ward information updated successfully!', 'success');
     }
+  };
+
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(INITIAL_HERO_SLIDES);
+
+  useEffect(() => {
+    const fetchHeroSlides = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('hero_slides')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          setHeroSlides(data.map((s: any) => ({
+            id: s.id,
+            titleBn: s.title_bn,
+            titleEn: s.title_en,
+            subtitleBn: s.subtitle_bn,
+            subtitleEn: s.subtitle_en,
+            imageUrl: s.image_url,
+            linkUrl: s.link_url,
+            displayOrder: s.display_order ?? 0,
+            isActive: s.is_active ?? true,
+            createdAt: s.created_at,
+          })));
+        } else {
+          const saved = localStorage.getItem('savar_hero_slides_v1');
+          if (saved) {
+            setHeroSlides(JSON.parse(saved));
+          }
+        }
+      } catch (err) {
+        console.warn('Hero slides fetch warning:', err);
+      }
+    };
+    fetchHeroSlides();
+  }, []);
+
+  const addHeroSlide = async (slideData: Omit<HeroSlide, 'id' | 'createdAt'>) => {
+    const newId = `slide-${Date.now()}`;
+    const newSlide: HeroSlide = {
+      id: newId,
+      ...slideData,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...heroSlides, newSlide];
+    setHeroSlides(updated);
+    localStorage.setItem('savar_hero_slides_v1', JSON.stringify(updated));
+
+    try {
+      await supabase.from('hero_slides').insert({
+        id: newSlide.id,
+        title_bn: newSlide.titleBn,
+        title_en: newSlide.titleEn,
+        subtitle_bn: newSlide.subtitleBn,
+        subtitle_en: newSlide.subtitleEn,
+        image_url: newSlide.imageUrl,
+        link_url: newSlide.linkUrl,
+        display_order: newSlide.displayOrder,
+        is_active: newSlide.isActive,
+      });
+      showToast(language === 'bn' ? 'নতুন স্লাইড সফলভাবে যোগ করা হয়েছে!' : 'New hero slide added successfully!', 'success');
+    } catch (e) {
+      console.warn('Supabase insert hero slide warning:', e);
+    }
+  };
+
+  const updateHeroSlide = async (id: string, updatedInfo: Partial<HeroSlide>) => {
+    const updated = heroSlides.map((s) => (s.id === id ? { ...s, ...updatedInfo } : s));
+    setHeroSlides(updated);
+    localStorage.setItem('savar_hero_slides_v1', JSON.stringify(updated));
+
+    try {
+      const dbPayload: any = {};
+      if (updatedInfo.titleBn !== undefined) dbPayload.title_bn = updatedInfo.titleBn;
+      if (updatedInfo.titleEn !== undefined) dbPayload.title_en = updatedInfo.titleEn;
+      if (updatedInfo.subtitleBn !== undefined) dbPayload.subtitle_bn = updatedInfo.subtitleBn;
+      if (updatedInfo.subtitleEn !== undefined) dbPayload.subtitle_en = updatedInfo.subtitleEn;
+      if (updatedInfo.imageUrl !== undefined) dbPayload.image_url = updatedInfo.imageUrl;
+      if (updatedInfo.linkUrl !== undefined) dbPayload.link_url = updatedInfo.linkUrl;
+      if (updatedInfo.displayOrder !== undefined) dbPayload.display_order = updatedInfo.displayOrder;
+      if (updatedInfo.isActive !== undefined) dbPayload.is_active = updatedInfo.isActive;
+
+      await supabase.from('hero_slides').update(dbPayload).eq('id', id);
+      showToast(language === 'bn' ? 'স্লাইড আপডেট করা হয়েছে!' : 'Slide updated successfully!', 'success');
+    } catch (e) {
+      console.warn('Supabase update hero slide warning:', e);
+    }
+  };
+
+  const deleteHeroSlide = async (id: string) => {
+    const updated = heroSlides.filter((s) => s.id !== id);
+    setHeroSlides(updated);
+    localStorage.setItem('savar_hero_slides_v1', JSON.stringify(updated));
+
+    try {
+      await supabase.from('hero_slides').delete().eq('id', id);
+      showToast(language === 'bn' ? 'স্লাইড মুছে ফেলা হয়েছে!' : 'Slide deleted successfully!', 'info');
+    } catch (e) {
+      console.warn('Supabase delete hero slide warning:', e);
+    }
+  };
+
+  const toggleHeroSlideActive = async (id: string) => {
+    const slide = heroSlides.find((s) => s.id === id);
+    if (!slide) return;
+    await updateHeroSlide(id, { isActive: !slide.isActive });
   };
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
@@ -993,6 +1107,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSearchQuery,
         wards,
         updateWard,
+        heroSlides,
+        addHeroSlide,
+        updateHeroSlide,
+        deleteHeroSlide,
+        toggleHeroSlideActive,
       }}
     >
       {children}

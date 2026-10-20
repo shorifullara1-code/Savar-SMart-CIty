@@ -1,4 +1,4 @@
-import { Complaint, SavarWardInfo, ProblemCategory } from '../types';
+import { Complaint, SavarWardInfo, ProblemCategory, HeroSlide } from '../types';
 
 export const SAVAR_WARDS: SavarWardInfo[] = [
   {
@@ -490,3 +490,40 @@ export const SAVAR_EMERGENCY_CONTACTS = [
     icon: 'Zap',
   },
 ];
+
+export const INITIAL_HERO_SLIDES: HeroSlide[] = [
+  {
+    id: 'slide-1',
+    titleBn: 'সাভার, বাইপাইল ও আশুলিয়ার নাগরিক সমস্যা সরাসরি পৌরসভাকে জানান',
+    titleEn: 'Direct Civic Grievance & Rapid Resolution for Savar',
+    subtitleBn: 'ভাঙা রাস্তা, ড্রেনেজ বা জলাবদ্ধতার ছবি তুলে সহজে অভিযোগ দাখিল করুন।',
+    subtitleEn: 'Report road potholes, clogged drains or waste with photo verification.',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18f1f33?auto=format&fit=crop&q=80&w=1200',
+    displayOrder: 1,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'slide-2',
+    titleBn: 'ডিজিটাল সাভার গড়ার প্রত্যয়ে স্মার্ট নাগরিক সেবা',
+    titleEn: 'Smart Civic Service for Digital Savar',
+    subtitleBn: 'আপনার এলাকার যেকোনো সমস্যা এখন এক ক্লিকেই পৌর কর্তৃপক্ষের কাছে পৌঁছে যাবে।',
+    subtitleEn: 'Submit civic issues instantly and track resolution progress in real time.',
+    imageUrl: 'https://images.unsplash.com/photo-1577495508048-b63587983cef?auto=format&fit=crop&q=80&w=1200',
+    displayOrder: 2,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'slide-3',
+    titleBn: 'স্বচ্ছতা ও দ্রুত সমাধান: বিফোর-আফটার আপডেট',
+    titleEn: 'Transparency & Quick Resolution: Before & After',
+    subtitleBn: 'পৌর কর্তৃপক্ষ কর্তৃক কাজ সম্পন্ন হওয়ার পর লাইভ ছবি ও সমাধান প্রতিবেদন দেখুন।',
+    subtitleEn: 'Inspect verified completion proofs and work updates from municipal officers.',
+    imageUrl: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&q=80&w=1200',
+    displayOrder: 3,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  }
+];
+

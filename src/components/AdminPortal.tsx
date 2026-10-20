@@ -35,7 +35,7 @@ import { UserList } from './UserList';
 const SUPABASE_FULL_SQL = `-- সাভার সার্ভিস হাব (Savar Service Hub) - Supabase সম্পূর্ণ ডাটাবেজ স্কিমা
 -- Project ID: qdlserqmaseoyuzmltmp
 
--- ১. Citizens Table (নাগরিক তথ্য টেবিল - মোবাইল নম্বর ভিত্তিক রেজিস্ট্রেশন ও লগইন)
+-- ১. Citizens Table (নাগরিক তথ্য টেবিল)
 create table if not exists public.citizens (
   id text primary key,
   mobile text unique not null,
@@ -99,22 +99,37 @@ create table if not exists public.wards (
   contact_number text
 );
 
--- ৫. RLS Permissions (সবার জন্য রিড ও রাইট পলিসি সক্রিয়করণ)
+-- ৫. Hero Slides Table (হিরো স্লাইডার ও ব্যানার ছবি টেবিল)
+create table if not exists public.hero_slides (
+  id text primary key,
+  title_bn text not null,
+  title_en text not null,
+  subtitle_bn text,
+  subtitle_en text,
+  image_url text not null,
+  link_url text,
+  display_order integer default 0,
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ৬. RLS Permissions (সবার জন্য রিড ও রাইট পলিসি সক্রিয়করণ)
 alter table public.citizens enable row level security;
 alter table public.complaints enable row level security;
 alter table public.comments enable row level security;
 alter table public.wards enable row level security;
+alter table public.hero_slides enable row level security;
 
 create policy "Enable all for citizens" on public.citizens for all using (true) with check (true);
 create policy "Enable all for complaints" on public.complaints for all using (true) with check (true);
 create policy "Enable all for comments" on public.comments for all using (true) with check (true);
 create policy "Enable all for wards" on public.wards for all using (true) with check (true);
+create policy "Enable all for hero_slides" on public.hero_slides for all using (true) with check (true);
 
--- ৬. প্রাথমিক অ্যাডমিন ও টেস্ট নাগরিক ডেটা
+-- ৭. প্রাথমিক অ্যাডমিন ও হিরো স্লাইড ডেটা
 insert into public.citizens (id, mobile, name, area, ward, role)
 values 
-  ('admin-savar-auth-1', '01938041064', 'সাভার পৌরসভা ও আশুলিয়া জোন (প্রধান অ্যাডমিন)', 'Savar Municipality Core', 'All Wards', 'admin'),
-  ('citizen-01712458921', '01712458921', 'তানভীর আহমেদ', 'Genda & Arapara', 'Ward 5', 'citizen')
+  ('admin-savar-auth-1', '01938041064', 'সাভার পৌরসভা ও আশুলিয়া জোন (প্রধান অ্যাডমিন)', 'Savar Municipality Core', 'All Wards', 'admin')
 on conflict (mobile) do nothing;
 `;
 
@@ -132,6 +147,11 @@ export const AdminPortal: React.FC = () => {
     wards,
     updateWard,
     isAdmin,
+    heroSlides,
+    addHeroSlide,
+    updateHeroSlide,
+    deleteHeroSlide,
+    toggleHeroSlideActive,
   } = useApp();
 
   if (!isAdmin) {
@@ -148,10 +168,24 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards' | 'users' | 'database'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards' | 'users' | 'database' | 'slides'>('pending');
   const [copiedSql, setCopiedSql] = useState(false);
   const [selectedForAction, setSelectedForAction] = useState<Complaint | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'solve' | 'reject' | null>(null);
+
+  // Hero Slide form states
+  const [newSlideTitleBn, setNewSlideTitleBn] = useState('');
+  const [newSlideTitleEn, setNewSlideTitleEn] = useState('');
+  const [newSlideSubtitleBn, setNewSlideSubtitleBn] = useState('');
+  const [newSlideSubtitleEn, setNewSlideSubtitleEn] = useState('');
+  const [newSlideImageUrl, setNewSlideImageUrl] = useState('https://images.unsplash.com/photo-1541888946425-d0fbb18f1f33?auto=format&fit=crop&q=80&w=1200');
+
+  const HERO_PRESET_IMAGES = [
+    { name: 'Savar Town / Infrastructure', url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18f1f33?auto=format&fit=crop&q=80&w=1200' },
+    { name: 'Digital City / Community', url: 'https://images.unsplash.com/photo-1577495508048-b63587983cef?auto=format&fit=crop&q=80&w=1200' },
+    { name: 'Resolution / Verified Work', url: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&q=80&w=1200' },
+    { name: 'Highway & Baipayl Hub', url: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&q=80&w=1200' },
+  ];
 
   // Form states for approval/solve
   const [selectedDept, setSelectedDept] = useState(MUNICIPAL_DEPARTMENTS[0]);
@@ -434,6 +468,21 @@ export const AdminPortal: React.FC = () => {
             <Database className="w-4 h-4" />
             <span>{language === 'bn' ? 'ডাটাবেজ ও SQL কোড' : 'Database & SQL'}</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('slides')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'slides'
+                ? 'bg-purple-600 text-white shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{language === 'bn' ? 'হিরো স্লাইডার ম্যানেজমেন্ট' : 'Hero Slides'}</span>
+            <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full text-xs">
+              {heroSlides.length}
+            </span>
+          </button>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
@@ -442,7 +491,205 @@ export const AdminPortal: React.FC = () => {
       </div>
 
       {/* Complaints or Users or Database Content */}
-      {activeTab === 'database' ? (
+      {/* Content for Slides, Database, Users or Complaints */}
+      {activeTab === 'slides' ? (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-5">
+            <div>
+              <div className="flex items-center gap-2 text-purple-800 font-bold text-lg">
+                <Sparkles className="w-5 h-5 text-purple-600" />
+                <span>{language === 'bn' ? 'ওয়েবসাইট হিরো স্লাইডার ছবি ও ব্যানার ম্যানেজমেন্ট' : 'Website Hero Slides Carousel Management'}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {language === 'bn' 
+                  ? 'হোমপেজের হিরো সেকশনের স্লাইড ছবি, বাংলা ও ইংরেজি শিরোনাম পরিবর্তন করুন।' 
+                  : 'Add, edit or toggle sliding banner pictures on the main website hero section.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Add New Slide Form */}
+          <form 
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newSlideTitleBn.trim() || !newSlideImageUrl.trim()) {
+                showToast(language === 'bn' ? 'শিরোনাম ও ছবির ইউআরএল দিন' : 'Please provide title and image URL', 'warning');
+                return;
+              }
+              await addHeroSlide({
+                titleBn: newSlideTitleBn.trim(),
+                titleEn: newSlideTitleEn.trim() || newSlideTitleBn.trim(),
+                subtitleBn: newSlideSubtitleBn.trim(),
+                subtitleEn: newSlideSubtitleEn.trim() || newSlideSubtitleBn.trim(),
+                imageUrl: newSlideImageUrl.trim(),
+                displayOrder: heroSlides.length + 1,
+                isActive: true,
+              });
+              setNewSlideTitleBn('');
+              setNewSlideTitleEn('');
+              setNewSlideSubtitleBn('');
+              setNewSlideSubtitleEn('');
+            }}
+            className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4"
+          >
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              <PlusCircle className="w-4 h-4 text-purple-600" />
+              <span>{language === 'bn' ? 'নতুন হিরো স্লাইড যোগ করুন' : 'Add New Hero Slide'}</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {language === 'bn' ? 'স্লাইড শিরোনাম (বাংলা)' : 'Title (Bengali)'} *
+                </label>
+                <input
+                  type="text"
+                  value={newSlideTitleBn}
+                  onChange={(e) => setNewSlideTitleBn(e.target.value)}
+                  placeholder="যেমন: সাভার পৌরসভায় স্বাগতম..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {language === 'bn' ? 'স্লাইড শিরোনাম (ইংরেজি)' : 'Title (English)'}
+                </label>
+                <input
+                  type="text"
+                  value={newSlideTitleEn}
+                  onChange={(e) => setNewSlideTitleEn(e.target.value)}
+                  placeholder="e.g. Welcome to Savar Pourashava"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {language === 'bn' ? 'উপশিরোনাম / বিবরণ (বাংলা)' : 'Subtitle (Bengali)'}
+                </label>
+                <input
+                  type="text"
+                  value={newSlideSubtitleBn}
+                  onChange={(e) => setNewSlideSubtitleBn(e.target.value)}
+                  placeholder="যেমন: রাস্তাঘাট ও ড্রেনেজ সমস্যা সহজে জানান..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {language === 'bn' ? 'উপশিরোনাম / বিবরণ (ইংরেজি)' : 'Subtitle (English)'}
+                </label>
+                <input
+                  type="text"
+                  value={newSlideSubtitleEn}
+                  onChange={(e) => setNewSlideSubtitleEn(e.target.value)}
+                  placeholder="e.g. Report civic issues with ease"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                {language === 'bn' ? 'ছবির ইউআরএল (Image URL)' : 'Image URL'} *
+              </label>
+              <input
+                type="url"
+                value={newSlideImageUrl}
+                onChange={(e) => setNewSlideImageUrl(e.target.value)}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white font-mono"
+                required
+              />
+
+              {/* Quick Presets */}
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="text-[11px] text-slate-500 font-medium">
+                  {language === 'bn' ? 'প্রিসেট ছবি নির্বাচন করুন:' : 'Preset banners:'}
+                </span>
+                {HERO_PRESET_IMAGES.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setNewSlideImageUrl(preset.url)}
+                    className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-slate-300 hover:bg-purple-50 hover:border-purple-300 text-slate-700 font-medium transition-all cursor-pointer"
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>{language === 'bn' ? 'স্লাইড যুক্ত করুন' : 'Add Hero Slide'}</span>
+              </button>
+            </div>
+          </form>
+
+          {/* Existing Slides List */}
+          <div className="space-y-4 pt-2">
+            <h3 className="text-sm font-bold text-slate-800">
+              {language === 'bn' ? `সক্রিয় স্লাইড তালিকা (${heroSlides.length}টি)` : `Active Slides (${heroSlides.length})`}
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {heroSlides.map((slide) => (
+                <div 
+                  key={slide.id}
+                  className={`rounded-2xl border p-4 flex flex-col justify-between gap-3 transition-all ${
+                    slide.isActive ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-50 border-slate-200 opacity-60'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={slide.imageUrl}
+                      alt={slide.titleBn}
+                      className="w-24 h-16 rounded-xl object-cover border border-slate-200 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          slide.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
+                        }`}>
+                          {slide.isActive ? (language === 'bn' ? 'সক্রিয়' : 'Active') : (language === 'bn' ? 'নিষ্ক্রিয়' : 'Inactive')}
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">Order: {slide.displayOrder}</span>
+                      </div>
+                      <h4 className="text-xs font-bold text-slate-900 mt-1 truncate">{slide.titleBn}</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{slide.subtitleBn || slide.titleEn}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                    <button
+                      onClick={() => toggleHeroSlideActive(slide.id)}
+                      className={`font-semibold px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+                        slide.isActive ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                      }`}
+                    >
+                      {slide.isActive ? (language === 'bn' ? 'নিষ্ক্রিয় করুন' : 'Deactivate') : (language === 'bn' ? 'সক্রিয় করুন' : 'Activate')}
+                    </button>
+
+                    <button
+                      onClick={() => deleteHeroSlide(slide.id)}
+                      className="text-rose-600 hover:text-rose-700 font-semibold p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer flex items-center gap-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>{language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : activeTab === 'database' ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
             <div>

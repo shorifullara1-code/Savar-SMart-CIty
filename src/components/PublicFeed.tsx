@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES_CONFIG, SAVAR_WARDS } from '../data/savarData';
@@ -45,7 +45,27 @@ export const PublicFeed: React.FC = () => {
     showToast,
     currentUser,
     setIsRegisterOpen,
+    heroSlides,
   } = useApp();
+
+  const activeSlides = heroSlides.filter((s) => s.isActive);
+  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+
+  useEffect(() => {
+    if (activeSlides.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlideIndex((prev) => (prev + 1) % activeSlides.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [activeSlides.length]);
+
+  const currentSlide = activeSlides[currentSlideIndex] || activeSlides[0] || {
+    titleBn: 'সাভার, বাইপাইল ও আশুলিয়ার নাগরিক সমস্যা সরাসরি পৌরসভাকে জানান',
+    titleEn: 'Direct Civic Grievance & Rapid Resolution for Savar',
+    subtitleBn: 'ভাঙা রাস্তা, ড্রেনেজ বা জলাবদ্ধতার ছবি তুলে সহজে অভিযোগ দাখিল করুন।',
+    subtitleEn: 'Report road potholes, clogged drains or waste with photo verification.',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18f1f33?auto=format&fit=crop&q=80&w=1200'
+  };
 
   const [trackingInput, setTrackingInput] = useState('');
   // Mode: 'public' or 'my-reports'
@@ -178,29 +198,57 @@ export const PublicFeed: React.FC = () => {
   return (
     <div className="space-y-6">
       
-      {/* Hero Welcome Banner */}
+      {/* Hero Welcome Banner with Sliding Picture Carousel */}
       <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-emerald-950 via-teal-900 to-slate-900 text-white shadow-2xl p-5 sm:p-8 md:p-10 border border-emerald-700/50">
         
+        {/* Background sliding image with dark gradient overlay */}
+        {currentSlide.imageUrl && (
+          <div className="absolute inset-0 z-0">
+            <img 
+              src={currentSlide.imageUrl} 
+              alt="Hero Slide" 
+              className="w-full h-full object-cover opacity-25 mix-overlay scale-105 transition-all duration-1000"
+            />
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/95 via-teal-950/90 to-slate-950/85" />
+          </div>
+        )}
+
         {/* Glow decorations */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-10 w-60 h-60 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-500/30 mb-4 backdrop-blur-xs">
-            <Building2 className="w-3.5 h-3.5" />
-            <span>{language === 'bn' ? 'সাভার পৌরসভা, বাইপাইল ও আশুলিয়া নাগরিক পোর্টাল' : 'Savar, Baipayl & Ashulia Civic Portal'}</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="inline-flex items-center gap-2 bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-xs font-semibold border border-emerald-500/30 backdrop-blur-xs">
+              <Building2 className="w-3.5 h-3.5" />
+              <span>{language === 'bn' ? 'সাভার পৌরসভা, বাইপাইল ও আশুলিয়া নাগরিক পোর্টাল' : 'Savar, Baipayl & Ashulia Civic Portal'}</span>
+            </div>
+
+            {/* Slide Navigation Dots */}
+            {activeSlides.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-black/30 px-2.5 py-1 rounded-full backdrop-blur-xs border border-white/10">
+                {activeSlides.map((slide, idx) => (
+                  <button
+                    key={slide.id}
+                    onClick={() => setCurrentSlideIndex(idx)}
+                    className={`h-2 rounded-full transition-all cursor-pointer ${
+                      currentSlideIndex === idx ? 'w-6 bg-emerald-400' : 'w-2 bg-white/40 hover:bg-white/70'
+                    }`}
+                    title={`Slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
-            {language === 'bn' 
-              ? 'সাভার, বাইপাইল ও আশুলিয়ার নাগরিক সমস্যা সরাসরি পৌরসভাকে জানান' 
-              : 'Direct Civic Grievance & Rapid Resolution for Savar'}
+            {language === 'bn' ? currentSlide.titleBn : currentSlide.titleEn}
           </h1>
 
           <p className="text-emerald-100/90 text-xs sm:text-sm md:text-base mt-3 leading-relaxed">
-            {language === 'bn'
-              ? 'ভাঙা রাস্তা, ড্রেনেজ বা জলাবদ্ধতার ছবি তুলে সহজে অভিযোগ দাখিল করুন। পৌরসভা কর্তৃপক্ষ যাচাই ও অনুমোদনের পর কাজ শুরু করবে এবং সমাধানের বাস্তব প্রমাণসহ আপডেট প্রদান করবে।'
-              : 'Report road potholes, clogged drains, overflowing waste or streetlight issues. Track authority responses with verified Before & After photo updates.'}
+            {language === 'bn' 
+              ? (currentSlide.subtitleBn || 'ভাঙা রাস্তা, ড্রেনেজ বা জলাবদ্ধতার ছবি তুলে সহজে অভিযোগ দাখিল করুন।') 
+              : (currentSlide.subtitleEn || 'Report road potholes, clogged drains, overflowing waste or streetlight issues.')}
           </p>
 
           {/* Action CTAs */}
