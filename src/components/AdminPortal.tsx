@@ -343,15 +343,32 @@ export const AdminPortal: React.FC = () => {
           {wards.map((ward) => (
             <div key={ward.wardNumber} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
               <h3 className="font-bold text-slate-800 text-base">{language === 'bn' ? ward.banglaName : ward.areaName}</h3>
-              <input
-                type="text"
-                value={language === 'bn' ? ward.banglaName : ward.areaName}
-                onChange={(e) => updateWard(ward.wardNumber, { [language === 'bn' ? 'banglaName' : 'areaName']: e.target.value })}
-                className="w-full p-2 border rounded text-xs"
-              />
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase">Bangla Name</label>
+                  <input
+                    type="text"
+                    value={ward.banglaName}
+                    onChange={(e) => updateWard(ward.wardNumber, { banglaName: e.target.value })}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-500 font-semibold uppercase">English Name</label>
+                  <input
+                    type="text"
+                    value={ward.areaName}
+                    onChange={(e) => updateWard(ward.wardNumber, { areaName: e.target.value })}
+                    className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
               <button
-                onClick={() => updateWard(ward.wardNumber, {})}
-                className="w-full py-2 bg-teal-600 text-white rounded-lg text-xs font-bold cursor-pointer"
+                onClick={() => {
+                  updateWard(ward.wardNumber, { banglaName: ward.banglaName, areaName: ward.areaName });
+                  showToast(language === 'bn' ? 'ওয়ার্ডের নাম আপডেট হয়েছে!' : 'Ward name updated!', 'success');
+                }}
+                className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer mt-2"
               >
                 {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save Changes'}
               </button>
