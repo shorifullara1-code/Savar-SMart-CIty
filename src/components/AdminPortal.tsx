@@ -29,6 +29,8 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Sparkles,
+  PlusCircle,
 } from 'lucide-react';
 import { UserList } from './UserList';
 
