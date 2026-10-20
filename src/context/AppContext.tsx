@@ -183,18 +183,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedUser) {
         setCurrentUser(JSON.parse(savedUser));
       } else {
-        // default to sample citizen for easy testing
-        const defaultCitizen: UserProfile = {
-          id: 'user-default-101',
-          name: 'তানভীর আহমেদ',
-          mobile: '01712458921',
-          area: 'Genda & Arapara',
-          ward: 'Ward 5',
-          role: 'citizen',
-          registeredAt: new Date().toISOString(),
-        };
-        setCurrentUser(defaultCitizen);
-        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(defaultCitizen));
+        setCurrentUser(null);
       }
 
       const savedComplaints = localStorage.getItem(STORAGE_KEY_COMPLAINTS);
