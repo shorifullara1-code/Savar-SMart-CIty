@@ -25,8 +25,98 @@ import {
   Filter,
   Eye,
   Trash2,
+  Database,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react';
 import { UserList } from './UserList';
+
+const SUPABASE_FULL_SQL = `-- সাভার সার্ভিস হাব (Savar Service Hub) - Supabase সম্পূর্ণ ডাটাবেজ স্কিমা
+-- Project ID: qdlserqmaseoyuzmltmp
+
+-- ১. Citizens Table (নাগরিক তথ্য টেবিল - মোবাইল নম্বর ভিত্তিক রেজিস্ট্রেশন ও লগইন)
+create table if not exists public.citizens (
+  id text primary key,
+  mobile text unique not null,
+  name text not null,
+  area text,
+  ward text,
+  role text not null default 'citizen',
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ২. Complaints Table (অভিযোগ টেবিল)
+create table if not exists public.complaints (
+  id text primary key,
+  tracking_code text,
+  title text not null,
+  description text not null,
+  category text not null,
+  area text not null,
+  ward text not null,
+  exact_location text not null,
+  urgency text not null,
+  status text not null default 'pending',
+  reporter_id text,
+  reporter_name text,
+  reporter_mobile text,
+  image_url text,
+  solved_image_url text,
+  solution_details text,
+  department text,
+  assigned_officer text,
+  admin_note text,
+  rejection_reason text,
+  upvotes integer default 0,
+  upvoted_by_user_ids text[] default array[]::text[],
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  approved_at timestamp with time zone,
+  solved_at timestamp with time zone,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ৩. Comments Table (মন্তব্য টেবিল)
+create table if not exists public.comments (
+  id text primary key,
+  complaint_id text references public.complaints(id) on delete cascade,
+  user_name text not null,
+  user_area text,
+  user_role text not null default 'citizen',
+  text text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- ৪. Wards Table (ওয়ার্ড টেবিল)
+create table if not exists public.wards (
+  ward_number text primary key,
+  area_name text not null,
+  bangla_name text not null,
+  zone text,
+  description text,
+  councilor_name text,
+  contact_number text
+);
+
+-- ৫. RLS Permissions (সবার জন্য রিড ও রাইট পলিসি সক্রিয়করণ)
+alter table public.citizens enable row level security;
+alter table public.complaints enable row level security;
+alter table public.comments enable row level security;
+alter table public.wards enable row level security;
+
+create policy "Enable all for citizens" on public.citizens for all using (true) with check (true);
+create policy "Enable all for complaints" on public.complaints for all using (true) with check (true);
+create policy "Enable all for comments" on public.comments for all using (true) with check (true);
+create policy "Enable all for wards" on public.wards for all using (true) with check (true);
+
+-- ৬. প্রাথমিক অ্যাডমিন ও টেস্ট নাগরিক ডেটা
+insert into public.citizens (id, mobile, name, area, ward, role)
+values 
+  ('admin-savar-auth-1', '01938041064', 'সাভার পৌরসভা ও আশুলিয়া জোন (প্রধান অ্যাডমিন)', 'Savar Municipality Core', 'All Wards', 'admin'),
+  ('citizen-01712458921', '01712458921', 'তানভীর আহমেদ', 'Genda & Arapara', 'Ward 5', 'citizen')
+on conflict (mobile) do nothing;
+`;
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -58,7 +148,8 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards' | 'users'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards' | 'users' | 'database'>('pending');
+  const [copiedSql, setCopiedSql] = useState(false);
   const [selectedForAction, setSelectedForAction] = useState<Complaint | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'solve' | 'reject' | null>(null);
 
@@ -331,15 +422,95 @@ export const AdminPortal: React.FC = () => {
             <User className="w-4 h-4" />
             <span>{language === 'bn' ? 'ব্যবহারকারী তালিকা' : 'User List'}</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('database')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'database'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            <span>{language === 'bn' ? 'ডাটাবেজ ও SQL কোড' : 'Database & SQL'}</span>
+          </button>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
-          {language === 'bn' ? `মোট প্রদর্শিত: ${activeTab === 'users' ? 'ব্যবহারকারী' : displayedComplaints.length} টি সমস্যা` : `Showing ${activeTab === 'users' ? 'users' : displayedComplaints.length} issues`}
+          {language === 'bn' ? `মোট প্রদর্শিত: ${activeTab === 'users' ? 'ব্যবহারকারী' : activeTab === 'database' ? 'SQL স্কিমা' : displayedComplaints.length} টি` : `Showing ${activeTab === 'users' ? 'users' : activeTab === 'database' ? 'SQL Schema' : displayedComplaints.length} items`}
         </div>
       </div>
 
-      {/* Complaints or Users Content */}
-      {activeTab === 'users' ? (
+      {/* Complaints or Users or Database Content */}
+      {activeTab === 'database' ? (
+        <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 space-y-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
+            <div>
+              <div className="flex items-center gap-2 text-emerald-800 font-bold text-lg">
+                <Database className="w-5 h-5 text-emerald-600" />
+                <span>{language === 'bn' ? 'Supabase ডাটাবেজ সংযোগ ও SQL সেটাপ' : 'Supabase Database & SQL Setup'}</span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {language === 'bn'
+                  ? 'এই SQL কোডটি দিয়ে Supabase এ citizens, complaints, comments ও wards টেবিল এবং RLS তৈরি হবে।'
+                  : 'Run this SQL script in Supabase to enable citizens mobile login, complaints persistence, and RLS.'}
+              </p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <a
+                href="https://supabase.com/dashboard/project/qdlserqmaseoyuzmltmp/sql"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <span>{language === 'bn' ? 'Supabase SQL Editor খুলুন' : 'Open Supabase SQL'}</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(SUPABASE_FULL_SQL);
+                  setCopiedSql(true);
+                  showToast(language === 'bn' ? 'সম্পূর্ণ SQL কোড কপি হয়েছে!' : 'SQL code copied to clipboard!', 'success');
+                  setTimeout(() => setCopiedSql(false), 3000);
+                }}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-emerald-600/20"
+              >
+                {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedSql ? (language === 'bn' ? 'কপি সম্পন্ন!' : 'Copied!') : (language === 'bn' ? 'SQL কোড কপি করুন' : 'Copy Full SQL')}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200">
+              <span className="font-bold text-emerald-900 block mb-1">১. Project ID & URL</span>
+              <p className="font-mono text-emerald-800 text-[11px] truncate">qdlserqmaseoyuzmltmp</p>
+              <p className="text-emerald-700 mt-1 text-[11px]">সংযুক্ত এবং সক্রিয়</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200">
+              <span className="font-bold text-blue-900 block mb-1">২. নাগরিক মোবাইল লগইন</span>
+              <p className="text-blue-800 text-[11px]">পাসওয়ার্ড বা ওটিপির প্রয়োজন নেই</p>
+              <p className="text-blue-700 mt-1 text-[11px]">সরাসরি মোবাইল নম্বর দিয়ে তাৎক্ষণিক লগইন</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
+              <span className="font-bold text-amber-900 block mb-1">৩. অ্যাডমিন ক্রেডেনশিয়াল</span>
+              <p className="font-mono text-amber-900 text-[11px]">ID: admin</p>
+              <p className="font-mono text-amber-800 text-[11px]">Pass: SavarAdmin@2026!</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+              <span>{language === 'bn' ? 'Supabase SQL স্ক্রিপ্ট প্রিভিউ:' : 'Supabase SQL Schema Preview:'}</span>
+              <span className="text-slate-400 font-mono text-[11px]">supabase_schema.sql</span>
+            </div>
+            <pre className="p-4 bg-slate-900 text-slate-100 rounded-2xl text-[11px] font-mono overflow-x-auto max-h-96 leading-relaxed border border-slate-800 selection:bg-emerald-600">
+              {SUPABASE_FULL_SQL}
+            </pre>
+          </div>
+        </div>
+      ) : activeTab === 'users' ? (
         <UserList />
       ) : activeTab === 'wards' ? (
         // ... existing wards code

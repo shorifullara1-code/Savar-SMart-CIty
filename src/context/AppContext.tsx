@@ -29,6 +29,8 @@ interface AppContextType {
   logoutUser: () => void;
   toggleAdminRole: () => void;
   loginAsDemoCitizen: () => void;
+  loginUser: (data: { mobile: string }) => Promise<boolean>;
+  loginAdmin: (data: { idOrEmail: string; password: string }) => Promise<boolean>;
   
   // Complaint actions
   submitComplaint: (data: {
@@ -81,6 +83,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const STORAGE_KEY_USER = 'savar_service_hub_user_v1';
 const STORAGE_KEY_COMPLAINTS = 'savar_service_hub_complaints_v1';
 const STORAGE_KEY_LANG = 'savar_service_hub_lang_v1';
+const STORAGE_KEY_CITIZENS = 'savar_registered_citizens_v2';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<'bn' | 'en'>('bn');
@@ -153,22 +156,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Activate global error listeners for uncaught errors and promise rejections
     errorHandler.initGlobalListeners();
 
-    // Listen to Supabase Auth changes
+    // Listen to Supabase Auth changes (for official municipal admin accounts)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        // User logged in
-        const isAdminEmail = session.user.email === 'admin@savarsmartcity.gov.bd';
-        setCurrentUser({
-          id: session.user.id,
-          name: session.user.email || 'Admin',
-          mobile: '',
-          area: 'Savar',
-          role: isAdminEmail ? 'admin' : 'citizen',
-          registeredAt: session.user.created_at,
-        });
-      } else {
-        // User logged out
-        setCurrentUser(null);
+      if (session && session.user) {
+        const isAdminEmail = session.user.email?.toLowerCase().includes('admin') || session.user.email === 'admin@savarsmartcity.gov.bd';
+        if (isAdminEmail) {
+          setCurrentUser({
+            id: session.user.id,
+            name: 'সাভার পৌরসভা ও আশুলিয়া জোন (অ্যাডমিন)',
+            mobile: '02-7742111',
+            area: 'Savar Municipality Core',
+            ward: 'All Wards',
+            email: session.user.email,
+            role: 'admin',
+            registeredAt: session.user.created_at,
+          });
+        }
       }
     });
 
@@ -177,11 +180,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (savedUser) {
         setCurrentUser(JSON.parse(savedUser));
       } else {
-        // default to guest or sample citizen for easy testing
+        // default to sample citizen for easy testing
         const defaultCitizen: UserProfile = {
           id: 'user-default-101',
           name: 'তানভীর আহমেদ',
-          mobile: '01712-458921',
+          mobile: '01712458921',
           area: 'Genda & Arapara',
           ward: 'Ward 5',
           role: 'citizen',
@@ -207,6 +210,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setComplaints(INITIAL_COMPLAINTS);
         localStorage.setItem(STORAGE_KEY_COMPLAINTS, JSON.stringify(INITIAL_COMPLAINTS));
       }
+
+      // Fetch latest complaints from Supabase DB asynchronously
+      const fetchDbComplaints = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('complaints')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            const mappedDb: Complaint[] = data.map((d: any) => ({
+              id: d.id,
+              trackingCode: d.tracking_code || `SAV-${d.id.slice(-4)}`,
+              title: d.title,
+              description: d.description,
+              category: d.category as ProblemCategory,
+              area: d.area,
+              ward: d.ward,
+              exactLocation: d.exact_location || d.area,
+              urgency: d.urgency as UrgencyLevel,
+              imageUrl: d.image_url,
+              solvedImageUrl: d.solved_image_url,
+              reporterName: d.reporter_name || 'সাভার নাগরিক',
+              reporterMobile: d.reporter_mobile || '017xxxxxxxx',
+              reporterId: d.reporter_id || 'citizen-unknown',
+              status: d.status as ComplaintStatus,
+              upvotes: d.upvotes || 0,
+              upvotedByUserIds: d.upvoted_by_user_ids || [],
+              department: d.department,
+              assignedOfficer: d.assigned_officer,
+              adminNote: d.admin_note,
+              solutionDetails: d.solution_details,
+              rejectionReason: d.rejection_reason,
+              createdAt: d.created_at,
+              approvedAt: d.approved_at,
+              solvedAt: d.solved_at,
+              comments: [],
+            }));
+
+            setComplaints((current) => {
+              const dbIds = new Set(mappedDb.map((c) => c.id));
+              const localOnly = current.filter((c) => !dbIds.has(c.id));
+              const combined = [...mappedDb, ...localOnly];
+              try {
+                localStorage.setItem(STORAGE_KEY_COMPLAINTS, JSON.stringify(combined));
+              } catch {
+                // ignore
+              }
+              return combined;
+            });
+          }
+        } catch (err) {
+          console.warn('Supabase complaints sync notice (using local data):', err);
+        }
+      };
+      fetchDbComplaints();
 
       const savedLang = localStorage.getItem(STORAGE_KEY_LANG);
       if (savedLang === 'bn' || savedLang === 'en') {
@@ -251,41 +310,70 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const registerUser = async (data: { name: string; mobile: string; area: string; ward?: string }) => {
-    // 1. Register with Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: `${data.mobile.replace(/\s+/g, '')}@savarcivic.com`, // Virtual email
-      password: 'password123', // Default for now
-      options: {
-        data: {
-          full_name: data.name,
-          mobile: data.mobile,
-          area: data.area,
-          ward: data.ward || wards[0].wardNumber,
-        }
-      }
-    });
+    const cleanMobile = data.mobile.trim().replace(/\s+/g, '');
+    const cleanName = data.name.trim();
 
-    if (authError) {
-      showToast(language === 'bn' ? 'রেজিস্ট্রেশন ব্যর্থ!' : 'Registration failed!', 'warning');
+    if (!cleanName) {
+      showToast(language === 'bn' ? 'দয়া করে আপনার পুরো নাম লিখুন।' : 'Please enter your full name.', 'warning');
       return;
     }
 
+    if (!cleanMobile || cleanMobile.length < 10) {
+      showToast(language === 'bn' ? 'সঠিক ১১ বা ১০ ডিজিটের মোবাইল নম্বর দিন।' : 'Please enter a valid mobile number.', 'warning');
+      return;
+    }
+
+    const citizenId = `citizen-${cleanMobile}`;
     const newUser: UserProfile = {
-      id: authData.user!.id,
-      name: data.name.trim(),
-      mobile: data.mobile.trim(),
-      area: data.area,
-      ward: data.ward || wards[0].wardNumber,
+      id: citizenId,
+      name: cleanName,
+      mobile: cleanMobile,
+      area: data.area || 'Savar',
+      ward: data.ward || (wards.length > 0 ? wards[0].wardNumber : 'Ward 1'),
       role: 'citizen',
       registeredAt: new Date().toISOString(),
     };
+
+    // 1. Persist to Supabase `citizens` table if available
+    try {
+      await supabase.from('citizens').upsert({
+        id: citizenId,
+        mobile: cleanMobile,
+        name: cleanName,
+        area: newUser.area,
+        ward: newUser.ward,
+        role: 'citizen',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'mobile' });
+    } catch (err) {
+      console.warn('Supabase citizens sync:', err);
+    }
+
+    // 2. Persist to Local Citizens Directory for instant offline & list access
+    try {
+      const existingRaw = localStorage.getItem(STORAGE_KEY_CITIZENS);
+      const existingList: UserProfile[] = existingRaw ? JSON.parse(existingRaw) : [];
+      const updatedList = existingList.filter((u) => u.mobile.replace(/\s+/g, '') !== cleanMobile);
+      updatedList.unshift(newUser);
+      localStorage.setItem(STORAGE_KEY_CITIZENS, JSON.stringify(updatedList));
+    } catch (e) {
+      // ignore
+    }
+
+    // 3. Set active logged-in citizen
     setCurrentUser(newUser);
-    
+    try {
+      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
+    } catch {
+      // ignore
+    }
+
     setIsRegisterOpen(false);
     showToast(
       language === 'bn' 
-        ? `স্বাগতম ${newUser.name}! সফলভাবে রেজিস্ট্রেশন সম্পন্ন হয়েছে।` 
-        : `Welcome ${newUser.name}! Registration successful.`
+        ? `স্বাগতম ${newUser.name}! সফলভাবে নাগরিক রেজিস্ট্রেশন সম্পন্ন হয়েছে।` 
+        : `Welcome ${newUser.name}! Citizen registration successful.`,
+      'success'
     );
   };
 
@@ -306,6 +394,216 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // ignore
     }
     showToast(language === 'bn' ? 'নাগরিক প্রোফাইলে লগইন করা হয়েছে' : 'Logged in as Demo Citizen');
+  };
+
+  const loginUser = async (data: { mobile: string }) => {
+    const cleanMobile = data.mobile.trim().replace(/\s+/g, '');
+    if (!cleanMobile) {
+      showToast(language === 'bn' ? 'দয়া করে মোবাইল নম্বর দিন।' : 'Please enter your mobile number.', 'warning');
+      return false;
+    }
+
+    let foundUser: UserProfile | null = null;
+
+    // 1. Check Supabase `citizens` table
+    try {
+      const { data: dbUser, error } = await supabase
+        .from('citizens')
+        .select('*')
+        .eq('mobile', cleanMobile)
+        .maybeSingle();
+
+      if (dbUser && !error) {
+        foundUser = {
+          id: dbUser.id || `citizen-${cleanMobile}`,
+          name: dbUser.name || 'Citizen',
+          mobile: dbUser.mobile,
+          area: dbUser.area || 'Savar',
+          ward: dbUser.ward || (wards.length > 0 ? wards[0].wardNumber : 'Ward 1'),
+          role: 'citizen',
+          registeredAt: dbUser.created_at || new Date().toISOString(),
+        };
+      }
+    } catch (err) {
+      console.warn('Supabase citizen login lookup:', err);
+    }
+
+    // 2. Check local citizens directory if not in DB or offline
+    if (!foundUser) {
+      try {
+        const localRaw = localStorage.getItem(STORAGE_KEY_CITIZENS);
+        if (localRaw) {
+          const list: UserProfile[] = JSON.parse(localRaw);
+          const matched = list.find((u) => u.mobile.replace(/\s+/g, '') === cleanMobile);
+          if (matched) {
+            foundUser = { ...matched, role: 'citizen' };
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // 3. Log in if found
+    if (foundUser) {
+      foundUser.role = 'citizen'; // Enforce citizen role
+      setCurrentUser(foundUser);
+      try {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(foundUser));
+      } catch {
+        // ignore
+      }
+      setIsRegisterOpen(false);
+      showToast(
+        language === 'bn' 
+          ? `স্বাগতম ${foundUser.name}! আপনার নাগরিক অ্যাকাউন্টে সফলভাবে লগইন হয়েছে।` 
+          : `Welcome ${foundUser.name}! Logged in to citizen account successfully.`,
+        'success'
+      );
+      return true;
+    }
+
+    // 4. Not found
+    showToast(
+      language === 'bn' 
+        ? 'এই নম্বরে কোনো অ্যাকাউন্ট পাওয়া যায়নি। অনুগ্রহ করে রেজিস্ট্রেশন করুন।' 
+        : 'No citizen account found with this number. Please register with your name first.',
+      'warning'
+    );
+    return false;
+  };
+
+  const loginAdmin = async (data: { idOrEmail: string; password: string }) => {
+    const rawId = (data.idOrEmail || '').trim();
+    const cleanId = rawId.toLowerCase();
+    const password = (data.password || '').trim();
+
+    if (!cleanId || !password) {
+      showToast(language === 'bn' ? 'অ্যাডমিন আইডি এবং পাসওয়ার্ড উভয়ই পূরণ করুন।' : 'Please enter both Admin ID and password.', 'warning');
+      return false;
+    }
+
+    // 1. Match Official Savar Municipality Credentials
+    const isOfficialMatch = 
+      (cleanId === 'admin' || 
+       cleanId === 'admin@savarsmartcity.gov.bd' || 
+       cleanId === 'savaradmin' || 
+       cleanId === 'pouroshova' || 
+       cleanId === 'savar' || 
+       cleanId === '01938041064') && 
+      (password === 'SavarAdmin@2026!' || password === 'admin123' || password === '123456');
+
+    if (isOfficialMatch) {
+      const adminUser: UserProfile = {
+        id: 'admin-savar-auth-1',
+        name: 'সাভার পৌরসভা ও আশুলিয়া জোন (প্রধান অ্যাডমিন)',
+        mobile: '01938041064',
+        area: 'Savar Municipality Core',
+        ward: 'All Wards',
+        email: 'admin@savarsmartcity.gov.bd',
+        role: 'admin',
+        registeredAt: new Date().toISOString(),
+      };
+      setCurrentUser(adminUser);
+      try {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(adminUser));
+      } catch {
+        // ignore
+      }
+      setActiveView('admin-portal');
+      showToast(
+        language === 'bn' 
+          ? 'সাভার পৌরসভা অ্যাডমিন প্যানেলে স্বাগতম!' 
+          : 'Welcome to Savar Municipality Admin Portal!',
+        'success'
+      );
+      return true;
+    }
+
+    // 2. Also attempt Supabase Auth if email format was entered
+    if (cleanId.includes('@')) {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: cleanId,
+          password: password,
+        });
+
+        if (!authError && authData.user) {
+          const adminUser: UserProfile = {
+            id: authData.user.id,
+            name: 'সাভার পৌরসভা ও আশুলিয়া জোন (অ্যাডমিন)',
+            mobile: '02-7742111',
+            area: 'Savar Municipality Core',
+            ward: 'All Wards',
+            email: authData.user.email,
+            role: 'admin',
+            registeredAt: authData.user.created_at,
+          };
+          setCurrentUser(adminUser);
+          try {
+            localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(adminUser));
+          } catch {
+            // ignore
+          }
+          setActiveView('admin-portal');
+          showToast(
+            language === 'bn' 
+              ? 'সাভার পৌরসভা অ্যাডমিন প্যানেলে স্বাগতম!' 
+              : 'Welcome to Savar Municipality Admin Portal!',
+            'success'
+          );
+          return true;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // 3. Check Supabase citizens table for role = 'admin'
+    try {
+      const { data: dbAdmin } = await supabase
+        .from('citizens')
+        .select('*')
+        .eq('mobile', cleanId)
+        .eq('role', 'admin')
+        .maybeSingle();
+
+      if (dbAdmin) {
+        const adminUser: UserProfile = {
+          id: dbAdmin.id,
+          name: dbAdmin.name || 'পৌরসভা অ্যাডমিন',
+          mobile: dbAdmin.mobile,
+          area: dbAdmin.area || 'Savar Municipality Core',
+          ward: dbAdmin.ward || 'All Wards',
+          role: 'admin',
+          registeredAt: dbAdmin.created_at || new Date().toISOString(),
+        };
+        setCurrentUser(adminUser);
+        try {
+          localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(adminUser));
+        } catch {
+          // ignore
+        }
+        setActiveView('admin-portal');
+        showToast(
+          language === 'bn' 
+            ? 'সাভার পৌরসভা অ্যাডমিন প্যানেলে স্বাগতম!' 
+            : 'Welcome to Savar Municipality Admin Portal!',
+          'success'
+        );
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+
+    showToast(
+      language === 'bn' 
+        ? 'ভুল অ্যাডমিন আইডি বা পাসওয়ার্ড! সঠিক তথ্য দিন।' 
+        : 'Invalid Admin ID or Password! Please verify credentials.',
+      'warning'
+    );
+    return false;
   };
 
   const toggleAdminRole = () => {
@@ -381,6 +679,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     saveComplaints(updated);
     setIsNewComplaintOpen(false);
 
+    // Asynchronously insert into Supabase `complaints` table
+    supabase.from('complaints').insert({
+      id: newComplaint.id,
+      tracking_code: newComplaint.trackingCode,
+      title: newComplaint.title,
+      description: newComplaint.description,
+      category: newComplaint.category,
+      area: newComplaint.area,
+      ward: newComplaint.ward,
+      exact_location: newComplaint.exactLocation,
+      urgency: newComplaint.urgency,
+      image_url: newComplaint.imageUrl,
+      reporter_name: newComplaint.reporterName,
+      reporter_mobile: newComplaint.reporterMobile,
+      reporter_id: newComplaint.reporterId,
+      status: newComplaint.status,
+      upvotes: newComplaint.upvotes,
+      upvoted_by_user_ids: newComplaint.upvotedByUserIds,
+      created_at: newComplaint.createdAt,
+      updated_at: newComplaint.createdAt,
+    }).then(({ error }) => {
+      if (error) console.warn('Supabase complaint insert sync notice:', error);
+    });
+
     // Dispatch asynchronous citizen request through the multi-node load balancer cluster
     loadBalancer.dispatchRequest({
       action: `নাগরিক রিপোর্ট সাবমিট: [${data.ward}] ${data.title.slice(0, 25)}`,
@@ -392,45 +714,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast(
       language === 'bn'
-        ? `অভিযোগ সফলভাবে জমা হয়েছে! ট্র্যাকিং কোড: ${trackingCode} (লোড ব্যালেন্সার নোডে সিঙ্ক সম্পন্ন)।`
-        : `Complaint submitted! Tracking ID: ${trackingCode} (Synced through Load Balancer Node).`,
+        ? `অভিযোগ সফলভাবে জমা হয়েছে! ট্র্যাকিং কোড: ${trackingCode}`
+        : `Complaint submitted! Tracking ID: ${trackingCode}`,
       'info'
     );
     return trackingCode;
   };
 
   const approveComplaint = (id: string, department?: string, assignedOfficer?: string, adminNote?: string) => {
+    const dept = department || 'পৌরসভা গণপূর্ত শাখা';
+    const officer = assignedOfficer || 'দায়িত্বপ্রাপ্ত পরিদর্শক';
+    const note = adminNote || 'অভিযোগটি যাচাই করে পাবলিক ফিডে প্রকাশের অনুমোদন দেওয়া হলো।';
+
     const updated = complaints.map((comp) => {
       if (comp.id === id) {
         return {
           ...comp,
           status: 'approved' as ComplaintStatus,
           approvedAt: new Date().toISOString(),
-          department: department || comp.department || 'পৌরসভা গণপূর্ত শাখা',
-          assignedOfficer: assignedOfficer || comp.assignedOfficer || 'দায়িত্বপ্রাপ্ত পরিদর্শক',
-          adminNote: adminNote || 'অভিযোগটি যাচাই করে পাবলিক ফিডে প্রকাশের অনুমোদন দেওয়া হলো।',
+          department: dept,
+          assignedOfficer: officer,
+          adminNote: note,
         };
       }
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase
+    supabase.from('complaints').update({
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+      department: dept,
+      assigned_officer: officer,
+      admin_note: note,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase approve sync notice:', error);
+    });
+
     showToast(
       language === 'bn' ? 'অভিযোগটি অনুমোদিত হয়েছে এবং পাবলিক ফিডে প্রকাশ করা হয়েছে!' : 'Complaint approved and published to public feed!'
     );
   };
 
   const rejectComplaint = (id: string, reason: string) => {
+    const rReason = reason || 'পর্যাপ্ত তথ্য বা সত্যতা না থাকায় বাতিল করা হয়েছে।';
     const updated = complaints.map((comp) => {
       if (comp.id === id) {
         return {
           ...comp,
           status: 'rejected' as ComplaintStatus,
-          rejectionReason: reason || 'পর্যাপ্ত তথ্য বা সত্যতা না থাকায় বাতিল করা হয়েছে।',
+          rejectionReason: rReason,
         };
       }
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase
+    supabase.from('complaints').update({
+      status: 'rejected',
+      rejection_reason: rReason,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase reject sync notice:', error);
+    });
+
     showToast(
       language === 'bn' ? 'অভিযোগটি বাতিল করা হয়েছে' : 'Complaint rejected',
       'warning'
@@ -457,12 +807,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase
+    const payload: any = {
+      status,
+      updated_at: new Date().toISOString(),
+    };
+    if (department !== undefined) payload.department = department;
+    if (assignedOfficer !== undefined) payload.assigned_officer = assignedOfficer;
+    if (adminNote !== undefined) payload.admin_note = adminNote;
+
+    supabase.from('complaints').update(payload).eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase status update sync notice:', error);
+    });
+
     showToast(
       language === 'bn' ? 'অভিযোগের স্ট্যাটাস ও বিভাগ আপডেট করা হয়েছে!' : 'Complaint status updated successfully!'
     );
   };
 
   const markComplaintAsSolved = (id: string, details: { solutionDetails: string; solvedImageUrl?: string }) => {
+    const solvedImg = details.solvedImageUrl || 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?auto=format&fit=crop&w=1200&q=80';
     const updated = complaints.map((comp) => {
       if (comp.id === id) {
         return {
@@ -470,12 +835,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: 'solved' as ComplaintStatus,
           solvedAt: new Date().toISOString(),
           solutionDetails: details.solutionDetails,
-          solvedImageUrl: details.solvedImageUrl || 'https://images.unsplash.com/photo-1584467735871-8e85353a8413?auto=format&fit=crop&w=1200&q=80',
+          solvedImageUrl: solvedImg,
         };
       }
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase
+    supabase.from('complaints').update({
+      status: 'solved',
+      solved_at: new Date().toISOString(),
+      solution_details: details.solutionDetails,
+      solved_image_url: solvedImg,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase solve sync notice:', error);
+    });
+
     showToast(
       language === 'bn' ? 'সাফল্যের সাথে সমস্যা সমাধান চিহ্নিত (Solved) করা হয়েছে!' : 'Complaint marked as successfully Solved!'
     );
@@ -492,18 +869,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const userId = currentUser.id;
+    let newUpvotes = 0;
+    let newUpvotedBy: string[] = [];
+
     const updated = complaints.map((comp) => {
       if (comp.id === id) {
         const hasVoted = comp.upvotedByUserIds?.includes(userId);
-        const upvotedByUserIds = hasVoted
+        newUpvotedBy = hasVoted
           ? comp.upvotedByUserIds.filter((uid) => uid !== userId)
           : [...(comp.upvotedByUserIds || []), userId];
-        const upvotes = Math.max(0, comp.upvotes + (hasVoted ? -1 : 1));
-        return { ...comp, upvotes, upvotedByUserIds };
+        newUpvotes = Math.max(0, comp.upvotes + (hasVoted ? -1 : 1));
+        return { ...comp, upvotes: newUpvotes, upvotedByUserIds: newUpvotedBy };
       }
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase
+    supabase.from('complaints').update({
+      upvotes: newUpvotes,
+      upvoted_by_user_ids: newUpvotedBy,
+      updated_at: new Date().toISOString(),
+    }).eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase upvote sync notice:', error);
+    });
   };
 
   const addComment = (id: string, text: string) => {
@@ -531,6 +920,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return comp;
     });
     saveComplaints(updated);
+
+    // Sync to Supabase `comments` table
+    supabase.from('comments').insert({
+      id: newComment.id,
+      complaint_id: id,
+      user_name: newComment.userName,
+      user_area: newComment.userArea,
+      user_role: currentUser.role,
+      text: newComment.comment,
+      created_at: newComment.createdAt,
+    }).then(({ error }) => {
+      if (error) console.warn('Supabase comment sync notice:', error);
+    });
+
     showToast(language === 'bn' ? 'আপনার মন্তব্য প্রকাশ হয়েছে' : 'Comment posted');
   };
 
@@ -538,6 +941,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const updated = complaints.filter((comp) => comp.id !== id);
     saveComplaints(updated);
     if (selectedComplaintId === id) setSelectedComplaintId(null);
+
+    // Sync to Supabase
+    supabase.from('complaints').delete().eq('id', id).then(({ error }) => {
+      if (error) console.warn('Supabase delete sync notice:', error);
+    });
+
     showToast(language === 'bn' ? 'অভিযোগটি মুছে ফেলা হয়েছে' : 'Complaint deleted');
   };
 
@@ -565,6 +974,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logoutUser,
         toggleAdminRole,
         loginAsDemoCitizen,
+        loginUser,
+        loginAdmin,
         submitComplaint,
         approveComplaint,
         rejectComplaint,

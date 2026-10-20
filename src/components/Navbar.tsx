@@ -278,21 +278,21 @@ export const Navbar: React.FC<{ onOpenAdminLogin: () => void }> = ({ onOpenAdmin
                 <span>{language === 'bn' ? 'অভিযোগ করুন' : 'Submit Issue'}</span>
               </button>
 
-              {/* Role switch toggle (Desktop) */}
+              {/* Admin status / login button (Desktop) */}
               <button
-                onClick={toggleAdminRole}
-                title={isAdmin ? 'Switch to Citizen View' : 'Switch to Savar Authority Admin'}
-                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border cursor-pointer transition-all ${
+                onClick={isAdmin ? () => setActiveView('admin-portal') : onOpenAdminLogin}
+                title={isAdmin ? 'Go to Savar Authority Admin Portal' : 'Login to Savar Authority Admin'}
+                className={`hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border cursor-pointer transition-all ${
                   isAdmin 
-                    ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100' 
+                    ? 'bg-amber-50 border-amber-300 text-amber-900 hover:bg-amber-100 shadow-xs' 
                     : 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200'
                 }`}
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                 <span>
                   {isAdmin 
-                    ? (language === 'bn' ? 'অ্যাডমিন মোড অন' : 'Admin Active') 
-                    : (language === 'bn' ? 'অ্যাডমিন সুইচ' : 'Admin Mode')}
+                    ? (language === 'bn' ? 'অ্যাডমিন মোড সক্রিয়' : 'Admin Active') 
+                    : (language === 'bn' ? 'অ্যাডমিন লগইন' : 'Admin Login')}
                 </span>
               </button>
 
