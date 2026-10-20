@@ -24,8 +24,9 @@ import {
   TrendingUp,
   Filter,
   Eye,
-  Trash2
+  Trash2,
 } from 'lucide-react';
+import { UserList } from './UserList';
 
 export const AdminPortal: React.FC = () => {
   const {
@@ -57,7 +58,7 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards'>('pending');
+  const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards' | 'users'>('pending');
   const [selectedForAction, setSelectedForAction] = useState<Complaint | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'solve' | 'reject' | null>(null);
 
@@ -320,91 +321,96 @@ export const AdminPortal: React.FC = () => {
           </button>
 
           <button
-            onClick={() => setActiveTab('wards')}
+            onClick={() => setActiveTab('users')}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
-              activeTab === 'wards'
-                ? 'bg-teal-600 text-white shadow-sm'
+              activeTab === 'users'
+                ? 'bg-blue-600 text-white shadow-sm'
                 : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            <MapPin className="w-4 h-4" />
-            <span>{language === 'bn' ? 'ওয়ার্ড ব্যবস্থাপনা' : 'Ward Management'}</span>
+            <User className="w-4 h-4" />
+            <span>{language === 'bn' ? 'ব্যবহারকারী তালিকা' : 'User List'}</span>
           </button>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
-          {language === 'bn' ? `মোট প্রদর্শিত: ${displayedComplaints.length} টি সমস্যা` : `Showing ${displayedComplaints.length} issues`}
+          {language === 'bn' ? `মোট প্রদর্শিত: ${activeTab === 'users' ? 'ব্যবহারকারী' : displayedComplaints.length} টি সমস্যা` : `Showing ${activeTab === 'users' ? 'users' : displayedComplaints.length} issues`}
         </div>
       </div>
 
-      {/* Complaints Table/Cards for Admin Review */}
-      {activeTab === 'wards' ? (
+      {/* Complaints or Users Content */}
+      {activeTab === 'users' ? (
+        <UserList />
+      ) : activeTab === 'wards' ? (
+        // ... existing wards code
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {wards.map((ward) => (
-            <div key={ward.wardNumber} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-              <h3 className="font-bold text-slate-800 text-base">{language === 'bn' ? ward.banglaName : ward.areaName}</h3>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-[10px] text-slate-500 font-semibold uppercase">Bangla Name</label>
-                    <input
-                      type="text"
-                      value={ward.banglaName}
-                      onChange={(e) => updateWard(ward.wardNumber, { banglaName: e.target.value })}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-500 font-semibold uppercase">English Name</label>
-                    <input
-                      type="text"
-                      value={ward.areaName}
-                      onChange={(e) => updateWard(ward.wardNumber, { areaName: e.target.value })}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
-                    />
-                  </div>
-                </div>
-                
-                <div className="pt-2 border-t border-slate-100">
-                  <label className="text-[10px] text-emerald-700 font-bold uppercase mb-1.5 block">
-                    {language === 'bn' ? 'ওয়ার্ড কর্মকর্তা' : 'Ward Official'}
-                  </label>
-                  <div className="grid grid-cols-1 gap-2">
-                    <input
-                      type="text"
-                      value={ward.councilorName}
-                      onChange={(e) => updateWard(ward.wardNumber, { councilorName: e.target.value })}
-                      placeholder={language === 'bn' ? 'কর্মকর্তার নাম' : 'Official Name'}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
-                    />
-                    <input
-                      type="text"
-                      value={ward.contactNumber}
-                      onChange={(e) => updateWard(ward.wardNumber, { contactNumber: e.target.value })}
-                      placeholder={language === 'bn' ? 'যোগাযোগ নম্বর' : 'Contact Number'}
-                      className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  updateWard(ward.wardNumber, { 
-                    banglaName: ward.banglaName, 
-                    areaName: ward.areaName,
-                    councilorName: ward.councilorName,
-                    contactNumber: ward.contactNumber
-                  });
-                  showToast(language === 'bn' ? 'ওয়ার্ডের তথ্য আপডেট হয়েছে!' : 'Ward info updated!', 'success');
-                }}
-                className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer mt-2"
-              >
-                {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save Changes'}
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : displayedComplaints.length === 0 ? (
+             <div key={ward.wardNumber} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+               <h3 className="font-bold text-slate-800 text-base">{language === 'bn' ? ward.banglaName : ward.areaName}</h3>
+               <div className="space-y-3">
+                 <div className="grid grid-cols-2 gap-2">
+                   <div>
+                     <label className="text-[10px] text-slate-500 font-semibold uppercase">Bangla Name</label>
+                     <input
+                       type="text"
+                       value={ward.banglaName}
+                       onChange={(e) => updateWard(ward.wardNumber, { banglaName: e.target.value })}
+                       className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                     />
+                   </div>
+                   <div>
+                     <label className="text-[10px] text-slate-500 font-semibold uppercase">English Name</label>
+                     <input
+                       type="text"
+                       value={ward.areaName}
+                       onChange={(e) => updateWard(ward.wardNumber, { areaName: e.target.value })}
+                       className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                     />
+                   </div>
+                 </div>
+                 
+                 <div className="pt-2 border-t border-slate-100">
+                   <label className="text-[10px] text-emerald-700 font-bold uppercase mb-1.5 block">
+                     {language === 'bn' ? 'ওয়ার্ড কর্মকর্তা' : 'Ward Official'}
+                   </label>
+                   <div className="grid grid-cols-1 gap-2">
+                     <input
+                       type="text"
+                       value={ward.councilorName}
+                       onChange={(e) => updateWard(ward.wardNumber, { councilorName: e.target.value })}
+                       placeholder={language === 'bn' ? 'কর্মকর্তার নাম' : 'Official Name'}
+                       className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                     />
+                     <input
+                       type="text"
+                       value={ward.contactNumber}
+                       onChange={(e) => updateWard(ward.wardNumber, { contactNumber: e.target.value })}
+                       placeholder={language === 'bn' ? 'যোগাযোগ নম্বর' : 'Contact Number'}
+                       className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono"
+                     />
+                   </div>
+                 </div>
+               </div>
+               <button
+                 onClick={() => {
+                   updateWard(ward.wardNumber, { 
+                     banglaName: ward.banglaName, 
+                     areaName: ward.areaName,
+                     councilorName: ward.councilorName,
+                     contactNumber: ward.contactNumber
+                   });
+                   showToast(language === 'bn' ? 'ওয়ার্ডের তথ্য আপডেট হয়েছে!' : 'Ward info updated!', 'success');
+                 }}
+                 className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer mt-2"
+               >
+                 {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save Changes'}
+               </button>
+             </div>
+           ))}
+         </div>
+       ) : displayedComplaints.length === 0 ? (
+        // ... rest of complaints code
+
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3 opacity-60" />
           <h3 className="font-bold text-slate-800 text-base mb-1">
