@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { language, setActiveView, toggleAdminRole, isAdmin, setIsLoadBalancerOpen } = useApp();
+  const { language, setActiveView, isAdmin, setIsAdminLoginOpen, setIsLoadBalancerOpen } = useApp();
 
   return (
     <footer className="bg-gradient-to-b from-slate-900 via-slate-950 to-black text-slate-400 text-xs mt-16 border-t border-slate-800">
@@ -264,8 +264,11 @@ export const Footer: React.FC = () => {
               <li>
                 <button
                   onClick={() => {
-                    if (!isAdmin) toggleAdminRole();
-                    setActiveView('admin-portal');
+                    if (isAdmin) {
+                      setActiveView('admin-portal');
+                    } else {
+                      setIsAdminLoginOpen(true);
+                    }
                   }}
                   className="hover:text-amber-300 text-amber-400 font-semibold transition-colors cursor-pointer text-left flex items-center gap-1"
                 >

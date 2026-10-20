@@ -40,7 +40,7 @@ export const PublicFeed: React.FC = () => {
     setIsNewComplaintOpen,
     setSelectedComplaintId,
     setActiveView,
-    toggleAdminRole,
+    setIsAdminLoginOpen,
     isAdmin,
     showToast,
     currentUser,
@@ -224,8 +224,11 @@ export const PublicFeed: React.FC = () => {
             {pendingCount > 0 && (
               <button
                 onClick={() => {
-                  if (!isAdmin) toggleAdminRole();
-                  setActiveView('admin-portal');
+                  if (isAdmin) {
+                    setActiveView('admin-portal');
+                  } else {
+                    setIsAdminLoginOpen(true);
+                  }
                 }}
                 className="bg-rose-500/25 hover:bg-rose-500/35 text-rose-200 border border-rose-500/40 text-xs font-semibold px-3 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
               >

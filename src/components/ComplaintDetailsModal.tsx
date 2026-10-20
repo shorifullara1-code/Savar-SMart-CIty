@@ -17,7 +17,8 @@ import {
   CheckCircle,
   Share2,
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  Printer,
 } from 'lucide-react';
 import { SafeImage } from './SafeImage';
 
@@ -150,6 +151,13 @@ export const ComplaintDetailsModal: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              title={language === 'bn' ? 'প্রিন্ট বা পিডিএফ রসিদ সেভ করুন' : 'Print or save PDF receipt'}
+            >
+              <Printer className="w-4 h-4" />
+            </button>
             <button
               onClick={handleShare}
               className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"

@@ -18,8 +18,15 @@ import { Footer } from './components/Footer';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
-  const { activeView, toast, clearToast, isLoadBalancerOpen, setIsLoadBalancerOpen } = useApp();
-  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
+  const { 
+    activeView, 
+    toast, 
+    clearToast, 
+    isLoadBalancerOpen, 
+    setIsLoadBalancerOpen,
+    isAdminLoginOpen,
+    setIsAdminLoginOpen,
+  } = useApp();
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans">

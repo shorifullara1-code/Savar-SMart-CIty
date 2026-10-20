@@ -35,7 +35,6 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, o
     setLanguage,
     setIsRegisterOpen,
     setIsNewComplaintOpen,
-    toggleAdminRole,
     complaints,
     setIsLoadBalancerOpen,
   } = useApp();
@@ -218,8 +217,12 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, o
 
             <button
               onClick={() => {
-                if (!isAdmin) toggleAdminRole();
-                handleNavClick('admin-portal');
+                if (isAdmin) {
+                  handleNavClick('admin-portal');
+                } else {
+                  onClose();
+                  onOpenAdminLogin();
+                }
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
                 activeView === 'admin-portal'

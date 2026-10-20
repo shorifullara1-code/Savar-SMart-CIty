@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { ShieldCheck, X, Loader2, KeyRound, Eye, EyeOff, Lock, Check } from 'lucide-react';
+import { ShieldCheck, X, Loader2, Eye, EyeOff, Lock } from 'lucide-react';
 
 interface AdminLoginModalProps {
   isOpen: boolean;
@@ -8,14 +8,21 @@ interface AdminLoginModalProps {
 }
 
 export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClose }) => {
-  const [idOrEmail, setIdOrEmail] = useState('admin');
-  const [password, setPassword] = useState('SavarAdmin@2026!');
+  const [idOrEmail, setIdOrEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { loginAdmin, language } = useApp();
 
   if (!isOpen) return null;
+
+  const handleClose = () => {
+    setIdOrEmail('');
+    setPassword('');
+    setError('');
+    onClose();
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +36,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
       });
 
       if (success) {
+        setIdOrEmail('');
+        setPassword('');
+        setError('');
         onClose();
       } else {
         setError(
@@ -44,20 +54,14 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
     }
   };
 
-  const handleFillDefaults = () => {
-    setIdOrEmail('admin');
-    setPassword('SavarAdmin@2026!');
-    setError('');
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={handleClose} />
       
       <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-7 w-full max-w-md relative z-10 animate-in zoom-in-95 duration-200 border border-slate-100">
         <button 
-          onClick={onClose} 
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-full transition-colors cursor-pointer"
+          onClick={handleClose} 
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-full transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -77,27 +81,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
           </p>
         </div>
 
-        {/* Credentials Helper Pill */}
-        <div className="mb-4 bg-slate-50 border border-slate-200 rounded-2xl p-3.5 text-xs text-slate-700 space-y-1.5">
-          <div className="flex items-center justify-between font-semibold text-slate-800">
-            <span className="flex items-center gap-1.5 text-emerald-700">
-              <KeyRound className="w-3.5 h-3.5" />
-              {language === 'bn' ? 'অফিসিয়াল অ্যাডমিন ক্রেডেনশিয়াল:' : 'Default Admin Credentials:'}
-            </span>
-            <button
-              type="button"
-              onClick={handleFillDefaults}
-              className="text-[11px] font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
-            >
-              {language === 'bn' ? 'বসিয়ে দিন' : 'Auto Fill'}
-            </button>
-          </div>
-          <div className="font-mono text-[11px] text-slate-600 space-y-0.5 bg-white p-2 rounded-xl border border-slate-200">
-            <div><span className="text-slate-400">ID:</span> <span className="font-semibold text-slate-800">admin</span> বা <span className="font-semibold text-slate-800">01938041064</span></div>
-            <div><span className="text-slate-400">Pass:</span> <span className="font-semibold text-slate-800">SavarAdmin@2026!</span></div>
-          </div>
-        </div>
-
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
@@ -108,9 +91,10 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
                 type="text"
                 value={idOrEmail}
                 onChange={(e) => setIdOrEmail(e.target.value)}
-                placeholder="admin"
+                placeholder={language === 'bn' ? 'আপনার অ্যাডমিন আইডি লিখুন' : 'Enter your Admin ID'}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-sm font-medium"
                 required
+                autoFocus
               />
             </div>
           </div>

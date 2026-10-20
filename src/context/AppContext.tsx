@@ -23,6 +23,8 @@ interface AppContextType {
   setSelectedComplaintId: (id: string | null) => void;
   isLoadBalancerOpen: boolean;
   setIsLoadBalancerOpen: (open: boolean) => void;
+  isAdminLoginOpen: boolean;
+  setIsAdminLoginOpen: (open: boolean) => void;
   
   // User actions
   registerUser: (data: { name: string; mobile: string; area: string; ward?: string }) => void;
@@ -95,6 +97,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isNewComplaintOpen, setIsNewComplaintOpen] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
   const [isLoadBalancerOpen, setIsLoadBalancerOpen] = useState(false);
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   const [filterCategory, setFilterCategory] = useState<ProblemCategory | 'all'>('all');
   const [filterArea, setFilterArea] = useState<string>('all');
@@ -607,26 +610,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const toggleAdminRole = () => {
-    if (!currentUser) return;
-    const newRole = currentUser.role === 'admin' ? 'citizen' : 'admin';
-    const updated = { ...currentUser, role: newRole as 'citizen' | 'admin' };
-    setCurrentUser(updated);
-    try {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updated));
-    } catch {
-      // ignore
-    }
-    if (newRole === 'admin') {
-      setActiveView('admin-portal');
-      showToast(
-        language === 'bn' 
-          ? 'পৌরসভা অ্যাডমিন মোড সক্রিয় হয়েছে (অডিট ও সমাধান প্যানেল)' 
-          : 'Savar Municipality Admin Mode activated'
-      );
-    } else {
+    if (currentUser?.role === 'admin') {
+      // Allow authenticated admin to switch view back to normal citizen
+      const updated: UserProfile = { ...currentUser, role: 'citizen' };
+      setCurrentUser(updated);
+      try {
+        localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
       setActiveView('feed');
       showToast(
-        language === 'bn' ? 'নাগরিক মোডে ফিরে আসা হয়েছে' : 'Switched back to Citizen mode'
+        language === 'bn' ? 'নাগরিক মোডে ফিরে আসা হয়েছে' : 'Switched back to Citizen mode',
+        'info'
+      );
+    } else {
+      // Regular user cannot become admin without entering password!
+      setIsAdminLoginOpen(true);
+      showToast(
+        language === 'bn'
+          ? 'অ্যাডমিন প্যানেলে প্রবেশের জন্য পাসওয়ার্ড দিয়ে লগইন করুন।'
+          : 'Please login with admin password to access.',
+        'info'
       );
     }
   };
@@ -970,6 +975,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedComplaintId,
         isLoadBalancerOpen,
         setIsLoadBalancerOpen,
+        isAdminLoginOpen,
+        setIsAdminLoginOpen,
         registerUser,
         logoutUser,
         toggleAdminRole,

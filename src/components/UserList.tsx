@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Search, Users, RefreshCw } from 'lucide-react';
+import { Download, Search, Users, RefreshCw, FileSpreadsheet, Printer } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface UserData {
   id: string;
@@ -15,11 +15,12 @@ interface UserData {
 }
 
 export const UserList: React.FC = () => {
-  const { language, wards } = useApp();
+  const { language, wards, showToast } = useApp();
   const [users, setUsers] = useState<UserData[]>([]);
   const [filterWard, setFilterWard] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -88,34 +89,133 @@ export const UserList: React.FC = () => {
     return matchWard && matchSearch;
   });
 
+  // 1. Robust PDF Download with autoTable
   const downloadPDF = () => {
-    const doc = new jsPDF();
-    doc.text(language === 'bn' ? 'সাভার পৌরসভা - নিবন্ধিত নাগরিক ও ব্যবহারকারী তালিকা' : 'Savar Pourashava - Registered Citizens Directory', 14, 15);
-    (doc as any).autoTable({
-      head: [
-        [
-          language === 'bn' ? 'নাম' : 'Name',
-          language === 'bn' ? 'মোবাইল নম্বর' : 'Mobile',
-          language === 'bn' ? 'ওয়ার্ড' : 'Ward',
-          language === 'bn' ? 'এলাকা' : 'Area',
-          language === 'bn' ? 'পদবী' : 'Role',
-        ],
-      ],
-      body: filteredUsers.map((u) => [
-        u.name,
-        u.mobile,
-        u.ward,
-        u.area,
-        u.role === 'admin' ? (language === 'bn' ? 'অ্যাডমিন' : 'Admin') : (language === 'bn' ? 'নাগরিক' : 'Citizen'),
-      ]),
-    });
-    doc.save('savar-citizens-list.pdf');
+    setDownloading(true);
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      // Header Banner
+      doc.setFillColor(5, 150, 105); // Emerald-600
+      doc.rect(0, 0, 210, 24, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SAVAR POURASHAVA - CITIZEN DIRECTORY', 14, 14);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Official Citizen Submissions & Account Directory', 14, 20);
+
+      // Metadata info
+      doc.setTextColor(70, 70, 70);
+      doc.setFontSize(9);
+      doc.text(`Total Records: ${filteredUsers.length} | Export Date: ${new Date().toLocaleDateString()}`, 14, 30);
+
+      const tableData = filteredUsers.map((u, index) => [
+        String(index + 1),
+        u.name || 'N/A',
+        u.mobile || 'N/A',
+        u.ward || 'Ward 1',
+        u.area || 'Savar',
+        u.role === 'admin' ? 'Admin' : 'Citizen',
+      ]);
+
+      autoTable(doc, {
+        startY: 34,
+        head: [['#', 'Name', 'Mobile Number', 'Ward', 'Area', 'Role']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [15, 23, 42], // Slate-900
+          textColor: [255, 255, 255],
+          fontSize: 8,
+          fontStyle: 'bold',
+          halign: 'left',
+        },
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.5,
+          font: 'helvetica',
+          overflow: 'linebreak',
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: 'center' },
+          1: { cellWidth: 50 },
+          2: { cellWidth: 35, font: 'courier' },
+          3: { cellWidth: 25 },
+          4: { cellWidth: 45 },
+          5: { cellWidth: 20, halign: 'center' },
+        },
+      });
+
+      doc.save(`savar-citizens-${new Date().toISOString().slice(0, 10)}.pdf`);
+      showToast(
+        language === 'bn' ? 'নাগরিক তালিকা পিডিএফ সফলভাবে ডাউনলোড হয়েছে!' : 'Citizen directory PDF downloaded successfully!',
+        'success'
+      );
+    } catch (err: any) {
+      console.error('PDF Generation Error:', err);
+      // If error occurs, fallback to CSV immediately
+      downloadCSV();
+      showToast(
+        language === 'bn' 
+          ? 'পিডিএফ ব্যর্থ হয়েছে, সিএসভি ফাইল হিসেবে ডাউনলোড করা হলো।' 
+          : 'PDF generation issue, exported as CSV instead.',
+        'info'
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // 2. UTF-8 CSV Export (supports full Bengali and Excel)
+  const downloadCSV = () => {
+    try {
+      const headers = ['#', 'Name', 'Mobile', 'Ward', 'Area', 'Role'];
+      const rows = filteredUsers.map((u, idx) => [
+        idx + 1,
+        `"${(u.name || '').replace(/"/g, '""')}"`,
+        `"${u.mobile}"`,
+        `"${u.ward}"`,
+        `"${(u.area || '').replace(/"/g, '""')}"`,
+        `"${u.role === 'admin' ? 'Admin' : 'Citizen'}"`,
+      ]);
+
+      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `savar-citizens-${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(
+        language === 'bn' ? 'সিএসভি (এক্সেল) ফাইল ডাউনলোড সম্পন্ন হয়েছে!' : 'CSV exported successfully!',
+        'success'
+      );
+    } catch (e) {
+      console.error('CSV export error:', e);
+    }
+  };
+
+  // 3. Browser Print dialog for instant print to paper or browser PDF
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-        <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+      <div className="flex flex-col lg:flex-row gap-3 items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div className="flex flex-wrap gap-2 w-full lg:w-auto items-center">
           <div className="relative flex-1 sm:w-64">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input 
@@ -148,13 +248,39 @@ export const UserList: React.FC = () => {
           </button>
         </div>
 
-        <button 
-          onClick={downloadPDF}
-          className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm transition-all"
-        >
-          <Download className="w-4 h-4" />
-          <span>{language === 'bn' ? 'নাগরিক তালিকা পিডিএফ ডাউনলোড' : 'Export PDF'}</span>
-        </button>
+        {/* Export Buttons */}
+        <div className="flex items-center gap-2 w-full lg:w-auto justify-end flex-wrap">
+          <button 
+            onClick={downloadCSV}
+            title="Export as CSV / Excel"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer border border-slate-200 transition-all"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{language === 'bn' ? 'এক্সেল / CSV' : 'CSV'}</span>
+          </button>
+
+          <button 
+            onClick={handlePrint}
+            title="Print Table"
+            className="hidden sm:flex bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-xl text-xs font-bold items-center gap-1.5 cursor-pointer border border-slate-200 transition-all"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-600" />
+            <span>{language === 'bn' ? 'প্রিন্ট' : 'Print'}</span>
+          </button>
+
+          <button 
+            onClick={downloadPDF}
+            disabled={downloading}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm transition-all disabled:opacity-75"
+          >
+            <Download className="w-4 h-4" />
+            <span>
+              {downloading 
+                ? (language === 'bn' ? 'তৈরি হচ্ছে...' : 'Generating...') 
+                : (language === 'bn' ? 'পিডিএফ ডাউনলোড' : 'Download PDF')}
+            </span>
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">

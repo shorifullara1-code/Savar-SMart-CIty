@@ -494,9 +494,9 @@ export const AdminPortal: React.FC = () => {
               <p className="text-blue-700 mt-1 text-[11px]">সরাসরি মোবাইল নম্বর দিয়ে তাৎক্ষণিক লগইন</p>
             </div>
             <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200">
-              <span className="font-bold text-amber-900 block mb-1">৩. অ্যাডমিন ক্রেডেনশিয়াল</span>
-              <p className="font-mono text-amber-900 text-[11px]">ID: admin</p>
-              <p className="font-mono text-amber-800 text-[11px]">Pass: SavarAdmin@2026!</p>
+              <span className="font-bold text-amber-900 block mb-1">৩. নিরাপত্তা ও অ্যাক্সেস</span>
+              <p className="text-amber-900 text-[11px]">পাসওয়ার্ড এনক্রিপ্টেড ও সুরক্ষিত</p>
+              <p className="text-amber-800 text-[11px]">অননুমোদিত প্রবেশ সম্পূর্ণ সংরক্ষিত</p>
             </div>
           </div>
 

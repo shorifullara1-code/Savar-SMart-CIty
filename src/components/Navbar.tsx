@@ -29,7 +29,6 @@ export const Navbar: React.FC<{ onOpenAdminLogin: () => void }> = ({ onOpenAdmin
     setActiveView,
     setIsRegisterOpen,
     setIsNewComplaintOpen,
-    toggleAdminRole,
     complaints,
     setIsLoadBalancerOpen,
     searchQuery,
@@ -73,8 +72,11 @@ export const Navbar: React.FC<{ onOpenAdminLogin: () => void }> = ({ onOpenAdmin
                 <span className="text-slate-600">|</span>
                 <button 
                   onClick={() => {
-                    if (!isAdmin) toggleAdminRole();
-                    setActiveView('admin-portal');
+                    if (isAdmin) {
+                      setActiveView('admin-portal');
+                    } else {
+                      onOpenAdminLogin();
+                    }
                   }}
                   className="flex items-center gap-1 text-rose-300 hover:text-white transition-colors cursor-pointer"
                   title="Review pending reports"
