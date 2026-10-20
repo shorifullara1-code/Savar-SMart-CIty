@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
@@ -11,6 +11,7 @@ import { RegistrationModal } from './components/RegistrationModal';
 import { NewComplaintModal } from './components/NewComplaintModal';
 import { ComplaintDetailsModal } from './components/ComplaintDetailsModal';
 import { LoadBalancerModal } from './components/LoadBalancerModal';
+import { AdminLoginModal } from './components/AdminLoginModal';
 import { NetworkStatusBar } from './components/NetworkStatusBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Footer } from './components/Footer';
@@ -18,6 +19,7 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const MainLayout: React.FC = () => {
   const { activeView, toast, clearToast, isLoadBalancerOpen, setIsLoadBalancerOpen } = useApp();
+  const [isAdminLoginOpen, setIsAdminLoginOpen] = useState(false);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-sans">
@@ -52,7 +54,7 @@ const MainLayout: React.FC = () => {
       )}
 
       {/* Navigation */}
-      <Navbar />
+      <Navbar onOpenAdminLogin={() => setIsAdminLoginOpen(true)} />
 
       {/* Main Content Area wrapped in nested Error Boundary protection */}
       <ErrorBoundary>
@@ -76,6 +78,7 @@ const MainLayout: React.FC = () => {
       <NewComplaintModal />
       <ComplaintDetailsModal />
       <LoadBalancerModal isOpen={isLoadBalancerOpen} onClose={() => setIsLoadBalancerOpen(false)} />
+      <AdminLoginModal isOpen={isAdminLoginOpen} onClose={() => setIsAdminLoginOpen(false)} />
 
       {/* Footer */}
       <Footer />

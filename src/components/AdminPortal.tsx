@@ -40,7 +40,22 @@ export const AdminPortal: React.FC = () => {
     showToast,
     wards,
     updateWard,
+    isAdmin,
   } = useApp();
+
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 text-center">
+        <ShieldCheck className="w-16 h-16 text-slate-300 mb-4" />
+        <h2 className="text-xl font-bold text-slate-900">
+          {language === 'bn' ? 'অ্যাডমিন অ্যাক্সেস প্রয়োজন' : 'Admin Access Required'}
+        </h2>
+        <p className="text-sm text-slate-500 mt-2">
+          {language === 'bn' ? 'এই প্যানেলে প্রবেশের জন্য অনুগ্রহ করে অ্যাডমিন হিসেবে লগইন করুন।' : 'Please login as an administrator to access this panel.'}
+        </p>
+      </div>
+    );
+  }
 
   const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'solved' | 'all' | 'wards'>('pending');
   const [selectedForAction, setSelectedForAction] = useState<Complaint | null>(null);

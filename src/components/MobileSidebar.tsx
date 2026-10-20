@@ -22,9 +22,10 @@ import {
 interface MobileSidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenAdminLogin: () => void;
 }
 
-export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose }) => {
+export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose, onOpenAdminLogin }) => {
   const {
     activeView,
     setActiveView,
@@ -271,16 +272,14 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose })
 
             <button
               onClick={() => {
-                toggleAdminRole();
+                onOpenAdminLogin();
                 onClose();
               }}
               className="w-full py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
               <span>
-                {isAdmin 
-                  ? (language === 'bn' ? 'নাগরিক মোডে ফিরুন' : 'Back to Citizen') 
-                  : (language === 'bn' ? 'অ্যাডমিন মোডে পরিবর্তন' : 'Switch to Admin')}
+                {language === 'bn' ? 'অ্যাডমিন লগইন' : 'Admin Login'}
               </span>
             </button>
           </div>
@@ -294,17 +293,17 @@ export const MobileSidebar: React.FC<MobileSidebarProps> = ({ isOpen, onClose })
             className="flex items-center justify-center gap-2 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold font-mono text-xs shadow-xs"
           >
             <Phone className="w-3.5 h-3.5" />
-            <span>পৌরসভা হেল্পলাইন: ০২-৭৭৪২১১১</span>
+            <span>{language === 'bn' ? 'পৌরসভা হেল্পলাইন:' : 'Pourashava Hotline:'} ০২-৭৭৪২১১১</span>
           </a>
 
           {/* Developer Credit */}
           <div className="pt-2 border-t border-slate-800 text-[11px] text-slate-400">
             <div className="flex items-center gap-1.5 text-white font-medium mb-1">
               <Code2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Developed by <strong className="text-emerald-400">Shoriful Islam</strong></span>
+              <span>{language === 'bn' ? 'ডেভেলপ করেছেন' : 'Developed by'} <strong className="text-emerald-400">Shoriful Islam</strong></span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Contact:</span>
+              <span>{language === 'bn' ? 'যোগাযোগ:' : 'Contact:'}</span>
               <a
                 href="tel:01938041064"
                 className="font-mono font-bold text-emerald-300 hover:underline"

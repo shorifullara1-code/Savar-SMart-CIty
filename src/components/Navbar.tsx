@@ -19,7 +19,7 @@ import {
   X
 } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<{ onOpenAdminLogin: () => void }> = ({ onOpenAdminLogin }) => {
   const {
     currentUser,
     isAdmin,
@@ -46,9 +46,9 @@ export const Navbar: React.FC = () => {
     <>
       <header className="sticky top-0 z-40 bg-white border-b border-slate-200/80 shadow-xs">
         {/* Top Banner with Savar Municipality branding and quick stats */}
-        <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white text-[11px] sm:text-xs px-3 sm:px-4 py-1.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium border border-emerald-500/30">
+        <div className="bg-gradient-to-r from-emerald-950 via-teal-900 to-slate-900 text-white text-[11px] sm:text-xs px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center justify-center bg-emerald-500/20 text-emerald-300 px-2.5 py-0.5 rounded-full font-medium border border-emerald-500/30 whitespace-nowrap">
               {language === 'bn' ? 'সাভার পৌরসভা ও আশুলিয়া জোন' : 'Savar Pourashava & Ashulia'}
             </span>
             <span className="hidden sm:inline text-slate-300">
@@ -237,10 +237,7 @@ export const Navbar: React.FC = () => {
               </button>
 
               <button
-                onClick={() => {
-                  if (!isAdmin) toggleAdminRole();
-                  else setActiveView('admin-portal');
-                }}
+                onClick={onOpenAdminLogin}
                 className={`px-2.5 lg:px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer relative ${
                   activeView === 'admin-portal'
                     ? 'bg-slate-900 text-white font-semibold shadow-xs'
@@ -365,7 +362,7 @@ export const Navbar: React.FC = () => {
       </header>
 
       {/* Render Mobile Sidebar component */}
-      <MobileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <MobileSidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onOpenAdminLogin={onOpenAdminLogin} />
     </>
   );
 };
