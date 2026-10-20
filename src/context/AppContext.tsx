@@ -126,6 +126,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Activate global error listeners for uncaught errors and promise rejections
     errorHandler.initGlobalListeners();
 
+    // Listen to Supabase Auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        // User logged in
+        setCurrentUser({
+          id: session.user.id,
+          name: session.user.email || 'Admin',
+          mobile: '',
+          area: 'Savar',
+          role: 'admin', // Assume admin if authenticated via this portal
+          registeredAt: session.user.created_at,
+        });
+      } else {
+        // User logged out
+        setCurrentUser(null);
+      }
+    });
+
     try {
       const savedUser = localStorage.getItem(STORAGE_KEY_USER);
       if (savedUser) {
@@ -169,6 +187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch {
       // ignore
     }
+    return () => subscription.unsubscribe();
   }, []);
 
   const saveComplaints = (newComplaints: Complaint[]) => {

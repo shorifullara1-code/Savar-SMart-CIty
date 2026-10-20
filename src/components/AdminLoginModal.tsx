@@ -34,7 +34,6 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({ isOpen, onClos
       // Here, we check if the login was successful and treat as admin
       showToast(language === 'bn' ? 'অ্যাডমিন প্যানেলে স্বাগতম!' : 'Welcome to Admin Portal!', 'success');
       onClose();
-      window.location.reload(); // Refresh to update context
     } catch (err: any) {
       setError(language === 'bn' ? 'লগইন ব্যর্থ। সঠিক তথ্য দিন।' : 'Login failed. Please check credentials.');
     } finally {
