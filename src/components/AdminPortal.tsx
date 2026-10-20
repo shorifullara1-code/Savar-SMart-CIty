@@ -303,6 +303,18 @@ export const AdminPortal: React.FC = () => {
           >
             <span>{language === 'bn' ? 'সকল তালিকা' : 'All List'}</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('wards')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'wards'
+                ? 'bg-teal-600 text-white shadow-sm'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <MapPin className="w-4 h-4" />
+            <span>{language === 'bn' ? 'ওয়ার্ড ব্যবস্থাপনা' : 'Ward Management'}</span>
+          </button>
         </div>
 
         <div className="text-xs text-slate-500 font-medium">
@@ -311,7 +323,27 @@ export const AdminPortal: React.FC = () => {
       </div>
 
       {/* Complaints Table/Cards for Admin Review */}
-      {displayedComplaints.length === 0 ? (
+      {activeTab === 'wards' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {wards.map((ward) => (
+            <div key={ward.wardNumber} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <h3 className="font-bold text-slate-800 text-base">{language === 'bn' ? ward.banglaName : ward.areaName}</h3>
+              <input
+                type="text"
+                value={language === 'bn' ? ward.banglaName : ward.areaName}
+                onChange={(e) => updateWard(ward.wardNumber, { [language === 'bn' ? 'banglaName' : 'areaName']: e.target.value })}
+                className="w-full p-2 border rounded text-xs"
+              />
+              <button
+                onClick={() => updateWard(ward.wardNumber, {})}
+                className="w-full py-2 bg-teal-600 text-white rounded-lg text-xs font-bold cursor-pointer"
+              >
+                {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save Changes'}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : displayedComplaints.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500">
           <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-3 opacity-60" />
           <h3 className="font-bold text-slate-800 text-base mb-1">
