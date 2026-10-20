@@ -28,8 +28,8 @@ export const NewComplaintModal: React.FC = () => {
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ProblemCategory>('roads');
-  const [area, setArea] = useState<string>(currentUser?.area || wards[0].areaName);
-  const [ward, setWard] = useState<string>(currentUser?.ward || wards[0].wardNumber);
+  const [area, setArea] = useState<string>(currentUser?.area || (wards.length > 0 ? wards[0].areaName : ''));
+  const [ward, setWard] = useState<string>(currentUser?.ward || (wards.length > 0 ? wards[0].wardNumber : ''));
   const [exactLocation, setExactLocation] = useState('');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>('medium');

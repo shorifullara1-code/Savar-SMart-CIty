@@ -98,24 +98,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [filterStatus, setFilterStatus] = useState<ComplaintStatus | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const [wards, setWards] = useState<SavarWardInfo[]>(() => {
-    try {
-      const saved = localStorage.getItem('savar_service_hub_wards_v1');
-      if (saved) return JSON.parse(saved);
-    } catch {
-      // ignore
-    }
-    return SAVAR_WARDS;
-  });
+  const [wards, setWards] = useState<SavarWardInfo[]>([]);
 
-  const updateWard = (wardNumber: string, updatedInfo: Partial<SavarWardInfo>) => {
-    const updated = wards.map((w) => (w.wardNumber === wardNumber ? { ...w, ...updatedInfo } : w));
-    setWards(updated);
-    try {
-      localStorage.setItem('savar_service_hub_wards_v1', JSON.stringify(updated));
+  // Fetch wards from Supabase
+  useEffect(() => {
+    const fetchWards = async () => {
+      const { data, error } = await supabase.from('wards').select('*');
+      if (error) {
+        console.error('Error fetching wards:', error);
+        setWards(SAVAR_WARDS); // Fallback
+      } else {
+        setWards(data.map(w => ({
+          wardNumber: w.ward_number,
+          areaName: w.area_name,
+          banglaName: w.bangla_name,
+          zone: w.zone,
+          description: w.description,
+          councilorName: w.councilor_name,
+          contactNumber: w.contact_number,
+          coordinates: { x: 0, y: 0 } // Default for now
+        })));
+      }
+    };
+    fetchWards();
+  }, []);
+
+  const updateWard = async (wardNumber: string, updatedInfo: Partial<SavarWardInfo>) => {
+    // Optimistic update
+    setWards(prev => prev.map(w => w.wardNumber === wardNumber ? { ...w, ...updatedInfo } : w));
+
+    // Persist to Supabase
+    const { error } = await supabase
+      .from('wards')
+      .update({
+        area_name: updatedInfo.areaName,
+        bangla_name: updatedInfo.banglaName,
+        councilor_name: updatedInfo.councilorName,
+        contact_number: updatedInfo.contactNumber
+      })
+      .eq('ward_number', wardNumber);
+
+    if (error) {
+      showToast(language === 'bn' ? 'ওয়ার্ড আপডেট ব্যর্থ হয়েছে!' : 'Ward update failed!', 'warning');
+      // Revert if error
+    } else {
       showToast(language === 'bn' ? 'ওয়ার্ডের তথ্য সফলভাবে আপডেট হয়েছে!' : 'Ward information updated successfully!', 'success');
-    } catch {
-      showToast('Error updating ward', 'warning');
     }
   };
 
