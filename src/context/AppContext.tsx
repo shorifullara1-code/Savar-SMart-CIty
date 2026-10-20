@@ -157,12 +157,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         // User logged in
+        const isAdminEmail = session.user.email === 'admin@savarsmartcity.gov.bd';
         setCurrentUser({
           id: session.user.id,
           name: session.user.email || 'Admin',
           mobile: '',
           area: 'Savar',
-          role: 'admin', // Assume admin if authenticated via this portal
+          role: isAdminEmail ? 'admin' : 'citizen',
           registeredAt: session.user.created_at,
         });
       } else {
@@ -249,22 +250,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const registerUser = (data: { name: string; mobile: string; area: string; ward?: string }) => {
+  const registerUser = async (data: { name: string; mobile: string; area: string; ward?: string }) => {
+    // 1. Register with Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: `${data.mobile.replace(/\s+/g, '')}@savarcivic.com`, // Virtual email
+      password: 'password123', // Default for now
+      options: {
+        data: {
+          full_name: data.name,
+          mobile: data.mobile,
+          area: data.area,
+          ward: data.ward || wards[0].wardNumber,
+        }
+      }
+    });
+
+    if (authError) {
+      showToast(language === 'bn' ? 'রেজিস্ট্রেশন ব্যর্থ!' : 'Registration failed!', 'warning');
+      return;
+    }
+
     const newUser: UserProfile = {
-      id: `usr-${Date.now().toString().slice(-6)}`,
+      id: authData.user!.id,
       name: data.name.trim(),
       mobile: data.mobile.trim(),
       area: data.area,
-      ward: data.ward || SAVAR_WARDS[0].wardNumber,
+      ward: data.ward || wards[0].wardNumber,
       role: 'citizen',
       registeredAt: new Date().toISOString(),
     };
     setCurrentUser(newUser);
-    try {
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(newUser));
-    } catch {
-      // ignore
-    }
+    
     setIsRegisterOpen(false);
     showToast(
       language === 'bn' 

@@ -1,22 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Search } from 'lucide-react';
+import { supabase } from '../services/supabaseClient';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
-// Mock users for demonstration (in a real app, fetch from Supabase)
-const MOCK_USERS = [
-  { id: '1', name: 'Tanvir Ahmed', mobile: '01712-458921', ward: 'Ward 1' },
-  { id: '2', name: 'Rahim Uddin', mobile: '01819-332110', ward: 'Ward 2' },
-  { id: '3', name: 'Sultana Begum', mobile: '01711-234503', ward: 'Ward 1' },
-];
+interface UserData {
+  id: string;
+  name: string;
+  mobile: string;
+  ward: string;
+}
 
 export const UserList: React.FC = () => {
   const { language, wards } = useApp();
+  const [users, setUsers] = useState<UserData[]>([]);
   const [filterWard, setFilterWard] = useState<string>('all');
   const [search, setSearch] = useState('');
 
-  const filteredUsers = MOCK_USERS.filter(u => 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (data) {
+        setUsers(data.map(p => ({
+          id: p.id,
+          name: p.full_name || 'N/A',
+          mobile: p.mobile || 'N/A',
+          ward: p.ward || 'N/A'
+        })));
+      }
+    };
+    fetchUsers();
+  }, []);
+
+
+  const filteredUsers = users.filter(u => 
     (filterWard === 'all' || u.ward === filterWard) &&
     (u.name.toLowerCase().includes(search.toLowerCase()) || u.mobile.includes(search))
   );
