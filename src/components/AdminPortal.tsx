@@ -343,30 +343,59 @@ export const AdminPortal: React.FC = () => {
           {wards.map((ward) => (
             <div key={ward.wardNumber} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
               <h3 className="font-bold text-slate-800 text-base">{language === 'bn' ? ward.banglaName : ward.areaName}</h3>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase">Bangla Name</label>
-                  <input
-                    type="text"
-                    value={ward.banglaName}
-                    onChange={(e) => updateWard(ward.wardNumber, { banglaName: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-xs"
-                  />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase">Bangla Name</label>
+                    <input
+                      type="text"
+                      value={ward.banglaName}
+                      onChange={(e) => updateWard(ward.wardNumber, { banglaName: e.target.value })}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 font-semibold uppercase">English Name</label>
+                    <input
+                      type="text"
+                      value={ward.areaName}
+                      onChange={(e) => updateWard(ward.wardNumber, { areaName: e.target.value })}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] text-slate-500 font-semibold uppercase">English Name</label>
-                  <input
-                    type="text"
-                    value={ward.areaName}
-                    onChange={(e) => updateWard(ward.wardNumber, { areaName: e.target.value })}
-                    className="w-full p-2 border border-slate-200 rounded-lg text-xs"
-                  />
+                
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="text-[10px] text-emerald-700 font-bold uppercase mb-1.5 block">
+                    {language === 'bn' ? 'ওয়ার্ড কর্মকর্তা' : 'Ward Official'}
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    <input
+                      type="text"
+                      value={ward.councilorName}
+                      onChange={(e) => updateWard(ward.wardNumber, { councilorName: e.target.value })}
+                      placeholder={language === 'bn' ? 'কর্মকর্তার নাম' : 'Official Name'}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={ward.contactNumber}
+                      onChange={(e) => updateWard(ward.wardNumber, { contactNumber: e.target.value })}
+                      placeholder={language === 'bn' ? 'যোগাযোগ নম্বর' : 'Contact Number'}
+                      className="w-full p-2 border border-slate-200 rounded-lg text-xs font-mono"
+                    />
+                  </div>
                 </div>
               </div>
               <button
                 onClick={() => {
-                  updateWard(ward.wardNumber, { banglaName: ward.banglaName, areaName: ward.areaName });
-                  showToast(language === 'bn' ? 'ওয়ার্ডের নাম আপডেট হয়েছে!' : 'Ward name updated!', 'success');
+                  updateWard(ward.wardNumber, { 
+                    banglaName: ward.banglaName, 
+                    areaName: ward.areaName,
+                    councilorName: ward.councilorName,
+                    contactNumber: ward.contactNumber
+                  });
+                  showToast(language === 'bn' ? 'ওয়ার্ডের তথ্য আপডেট হয়েছে!' : 'Ward info updated!', 'success');
                 }}
                 className="w-full py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-bold cursor-pointer mt-2"
               >
