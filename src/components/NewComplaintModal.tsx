@@ -23,12 +23,13 @@ export const NewComplaintModal: React.FC = () => {
     submitComplaint,
     language,
     showToast,
+    wards,
   } = useApp();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<ProblemCategory>('roads');
-  const [area, setArea] = useState<string>(currentUser?.area || SAVAR_WARDS[0].areaName);
-  const [ward, setWard] = useState<string>(currentUser?.ward || SAVAR_WARDS[0].wardNumber);
+  const [area, setArea] = useState<string>(currentUser?.area || wards[0].areaName);
+  const [ward, setWard] = useState<string>(currentUser?.ward || wards[0].wardNumber);
   const [exactLocation, setExactLocation] = useState('');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<UrgencyLevel>('medium');
@@ -40,7 +41,7 @@ export const NewComplaintModal: React.FC = () => {
 
   const handleAreaChange = (selectedArea: string) => {
     setArea(selectedArea);
-    const matched = SAVAR_WARDS.find((w) => w.areaName === selectedArea);
+    const matched = wards.find((w) => w.areaName === selectedArea);
     if (matched) {
       setWard(matched.wardNumber);
     }
@@ -233,28 +234,28 @@ export const NewComplaintModal: React.FC = () => {
                   className="w-full pl-9 pr-3 py-2 text-sm border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-hidden bg-white cursor-pointer font-medium text-slate-800"
                 >
                   <optgroup label="সাভার পৌরসভা (ওয়ার্ড ১-৯)">
-                    {SAVAR_WARDS.filter(w => w.wardNumber.startsWith('Ward')).map((w) => (
+                    {wards.filter(w => w.wardNumber.startsWith('Ward')).map((w) => (
                       <option key={w.areaName} value={w.areaName}>
                         {language === 'bn' ? w.banglaName : `${w.areaName} (${w.wardNumber})`}
                       </option>
                     ))}
                   </optgroup>
                   <optgroup label="বাইপাইল ও ডিইপিজেড জোন">
-                    {SAVAR_WARDS.filter(w => w.wardNumber.includes('Baipayl')).map((w) => (
+                    {wards.filter(w => w.wardNumber.includes('Baipayl')).map((w) => (
                       <option key={w.areaName} value={w.areaName}>
                         {language === 'bn' ? w.banglaName : `${w.areaName} (${w.wardNumber})`}
                       </option>
                     ))}
                   </optgroup>
                   <optgroup label="আশুলিয়া ও জামগড়া জোন">
-                    {SAVAR_WARDS.filter(w => w.wardNumber.includes('Ashulia')).map((w) => (
+                    {wards.filter(w => w.wardNumber.includes('Ashulia')).map((w) => (
                       <option key={w.areaName} value={w.areaName}>
                         {language === 'bn' ? w.banglaName : `${w.areaName} (${w.wardNumber})`}
                       </option>
                     ))}
                   </optgroup>
                   <optgroup label="স্মৃতিসৌধ, বিরুলিয়া ও অন্যান্য সংলগ্ন এলাকা">
-                    {SAVAR_WARDS.filter(w => !w.wardNumber.startsWith('Ward') && !w.wardNumber.includes('Baipayl') && !w.wardNumber.includes('Ashulia')).map((w) => (
+                    {wards.filter(w => !w.wardNumber.startsWith('Ward') && !w.wardNumber.includes('Baipayl') && !w.wardNumber.includes('Ashulia')).map((w) => (
                       <option key={w.areaName} value={w.areaName}>
                         {language === 'bn' ? w.banglaName : `${w.areaName} (${w.wardNumber})`}
                       </option>
