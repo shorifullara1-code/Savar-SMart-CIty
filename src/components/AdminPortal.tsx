@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Sparkles,
   PlusCircle,
+  Upload,
 } from 'lucide-react';
 import { UserList } from './UserList';
 
@@ -188,6 +189,24 @@ export const AdminPortal: React.FC = () => {
     { name: 'Resolution / Verified Work', url: 'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?auto=format&fit=crop&q=80&w=1200' },
     { name: 'Highway & Baipayl Hub', url: 'https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&q=80&w=1200' },
   ];
+
+  const handleHeroFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast(language === 'bn' ? 'ছবির সাইজ ৫ মেগাবাইটের কম হতে হবে' : 'Image size must be under 5MB', 'warning');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (reader.result) {
+          setNewSlideImageUrl(reader.result as string);
+          showToast(language === 'bn' ? 'ডিভাইস থেকে ছবি আপলোড সফল হয়েছে!' : 'Image uploaded successfully from device!', 'success');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Form states for approval/solve
   const [selectedDept, setSelectedDept] = useState(MUNICIPAL_DEPARTMENTS[0]);
@@ -594,16 +613,38 @@ export const AdminPortal: React.FC = () => {
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
-                {language === 'bn' ? 'ছবির ইউআরএল (Image URL)' : 'Image URL'} *
+                {language === 'bn' ? 'ছবির ইউআরএল অথবা ডিভাইস স্টোরেজ থেকে আপলোড' : 'Image URL or Device Storage Upload'} *
               </label>
-              <input
-                type="url"
-                value={newSlideImageUrl}
-                onChange={(e) => setNewSlideImageUrl(e.target.value)}
-                placeholder="https://images.unsplash.com/..."
-                className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white font-mono"
-                required
-              />
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={newSlideImageUrl}
+                  onChange={(e) => setNewSlideImageUrl(e.target.value)}
+                  placeholder="https://images.unsplash.com/... বা ফাইল আপলোড করুন"
+                  className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-purple-500 outline-hidden bg-white font-mono"
+                  required
+                />
+                <label className="px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-xs rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors shrink-0">
+                  <Upload className="w-4 h-4" />
+                  <span>{language === 'bn' ? 'স্টোরেজ থেকে আপলোড' : 'Upload File'}</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleHeroFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Preview */}
+              {newSlideImageUrl && (
+                <div className="mt-3 relative w-full h-28 rounded-xl overflow-hidden border border-slate-200 bg-slate-100">
+                  <img src={newSlideImageUrl} alt="Slide Preview" className="w-full h-full object-cover" />
+                  <span className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-0.5 rounded text-[10px]">
+                    {language === 'bn' ? 'স্লাইড ছবি প্রিভিউ' : 'Slide Image Preview'}
+                  </span>
+                </div>
+              )}
 
               {/* Quick Presets */}
               <div className="flex flex-wrap items-center gap-2 mt-2">
